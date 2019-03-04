@@ -9,8 +9,6 @@ import (
 
 const defaultFirstBucketSize int = 16 * 1024
 
-var Nil = APtr{}
-
 type APtr struct {
 	offset    uint32
 	bucketIdx uint8
@@ -19,9 +17,6 @@ type APtr struct {
 }
 
 func (p APtr) ToRef(arena *Arena) unsafe.Pointer {
-	if p == Nil {
-		panic("nil pointer conversion")
-	}
 	if p.arenaMask != arena.arenaMask {
 		panic("this pointer isn't part of passed arena")
 	}

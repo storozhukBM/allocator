@@ -125,7 +125,7 @@ func TestAllocationPath(t *testing.T) {
 			for _, alloc := range path.allocations {
 				for i := 0; i < alloc.count; i++ {
 					ptr := ar.Alloc(alloc.target.typeVal.Size())
-					assert(ptr != Nil, "ptr is not nil")
+					assert(ptr != APtr{}, "ptr is not nil")
 				}
 				checkArenaState(ar, alloc.result)
 			}
