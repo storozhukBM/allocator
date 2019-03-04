@@ -2,70 +2,42 @@ package allocator
 
 import (
 	"fmt"
-	"math/rand"
-	"reflect"
 	"unsafe"
 )
 
-const defaultFirstBucketSize int = 16 * 1024
-
-type APtr struct {
-	offset    uint32
-	bucketIdx uint8
-
-	arenaMask uint16
-}
-
-func (p APtr) ToRef(arena *Arena) unsafe.Pointer {
-	if p.arenaMask != arena.arenaMask {
-		panic("this pointer isn't part of passed arena")
-	}
-	targetBuffer := arena.buckets[p.bucketIdx].buffer
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&targetBuffer))
-	return unsafe.Pointer(header.Data + uintptr(p.offset))
-}
-
 type Arena struct {
-	buckets []*bucket
+	target           RawArena
+	lastAllocatedPrt APtr
 
 	countOfAllocations int
 	usedBytes          int
 	overallCapacity    int
-
-	arenaMask uint16
 }
 
-func (a *Arena) initIfNecessary() {
-	if a.buckets == nil {
-		a.buckets = append(a.buckets, &bucket{buffer: make([]byte, defaultFirstBucketSize)})
-		a.overallCapacity = defaultFirstBucketSize
-		a.arenaMask = uint16(rand.Uint32())
-	}
+func (a *Arena) ToRef(p APtr) unsafe.Pointer {
+	return a.target.ToRef(p)
 }
 
 func (a *Arena) Alloc(size uintptr) APtr {
-	a.initIfNecessary()
-
-	targetSize := int(size)
-	bIdx := len(a.buckets) - 1
-	b := a.buckets[bIdx]
-	if targetSize > b.availableSize() {
-		newSize := max(len(b.buffer)*2, targetSize*2)
-		newBucket := &bucket{buffer: make([]byte, newSize)}
-		a.buckets = append(a.buckets, newBucket)
-		bIdx += 1
-		b = newBucket
-
-		a.overallCapacity += newSize
+	aPtrNil := APtr{}
+	result := a.target.Alloc(size)
+	if result.bucketIdx != a.lastAllocatedPrt.bucketIdx || a.lastAllocatedPrt == aPtrNil {
+		a.overallCapacity += len(a.target.currentBucket.buffer)
 	}
 
-	allocationOffset := b.offset
-	b.offset += targetSize
-
+	targetSize := int(size)
 	a.countOfAllocations += 1
 	a.usedBytes += targetSize
+	a.lastAllocatedPrt = result
 
-	return APtr{bucketIdx: uint8(bIdx), offset: uint32(allocationOffset), arenaMask: a.arenaMask}
+	return result
+}
+
+func (a *Arena) String() string {
+	return fmt.Sprintf(
+		"arena{mask: %v countOfAllocations: %v usedBytes: %v overallCapacity %v countOfBuckets: %v}",
+		a.target.arenaMask, a.countOfAllocations, a.usedBytes, a.overallCapacity, a.CountOfBuckets(),
+	)
 }
 
 func (a *Arena) CountOfAllocations() int {
@@ -81,25 +53,5 @@ func (a *Arena) OverallCapacity() int {
 }
 
 func (a *Arena) CountOfBuckets() int {
-	return len(a.buckets)
-}
-
-type bucket struct {
-	buffer []byte
-	offset int
-}
-
-func (b *bucket) availableSize() int {
-	return len(b.buffer) - b.offset
-}
-
-func (b *bucket) String() string {
-	return fmt.Sprintf("bucket{size: %v; offset: %v; available: %v}", len(b.buffer), b.offset, b.availableSize())
-}
-
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+	return int(a.lastAllocatedPrt.bucketIdx) + 1
 }

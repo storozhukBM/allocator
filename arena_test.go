@@ -121,7 +121,7 @@ func TestAllocationPath(t *testing.T) {
 		caseName := strings.Replace(path.name, " ", "_", -1)
 		t.Run(caseName, func(t *testing.T) {
 			ar := &Arena{}
-			checkArenaState(ar, allocationResult{})
+			checkArenaState(ar, allocationResult{countOfBuckets: 1})
 			for _, alloc := range path.allocations {
 				for i := 0; i < alloc.count; i++ {
 					ptr := ar.Alloc(alloc.target.typeVal.Size())
@@ -135,7 +135,7 @@ func TestAllocationPath(t *testing.T) {
 
 func TestAllocationInGeneral(t *testing.T) {
 	ar := &Arena{}
-	checkArenaState(ar, allocationResult{})
+	checkArenaState(ar, allocationResult{countOfBuckets: 1})
 	ar.Alloc(3) // mess with padding
 	checkArenaState(ar, allocationResult{
 		countOfAllocations: 1,
@@ -154,7 +154,7 @@ func TestAllocationInGeneral(t *testing.T) {
 	cache := make(map[string]*person)
 	for i := 1; i < 10001; i++ {
 		aPtr := ar.Alloc(unsafe.Sizeof(person{}))
-		ref := aPtr.ToRef(ar)
+		ref := ar.ToRef(aPtr)
 		rawPtr := uintptr(ref)
 		p := (*person)(unsafe.Pointer(rawPtr))
 		p.name = strconv.Itoa(i)
@@ -191,7 +191,7 @@ func TestAllocationInGeneral(t *testing.T) {
 
 func checkArenaState(arena *Arena, result allocationResult) {
 	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
-	for _, bucket := range arena.buckets {
+	for _, bucket := range arena.target.buckets {
 		arenaStr += fmt.Sprintf("%v\n", bucket)
 	}
 	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations.\n exp: %+v\n act: %+v\n", result, arenaStr)
