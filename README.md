@@ -33,6 +33,7 @@ Second Release
 Done:
 1. Raw arena implementation
 1. General arena wrapper with basic metrics
+1. Support fetch current allocation offset
 
 
 Build

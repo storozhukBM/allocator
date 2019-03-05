@@ -22,6 +22,9 @@ type allocationResult struct {
 	usedBytes          int
 	overallCapacity    int
 	countOfBuckets     int
+
+	currentBucketIdx    int
+	currentBucketOffset int
 }
 
 type allocationPath struct {
@@ -29,7 +32,7 @@ type allocationPath struct {
 	allocations []allocation
 }
 
-func checkArenaState(arena *Arena, result allocationResult) {
+func checkArenaState(arena *Arena, result allocationResult, expectedOffset AOffset) {
 	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
 	for _, bucket := range arena.target.buckets {
 		arenaStr += fmt.Sprintf("%v\n", bucket)
@@ -38,6 +41,9 @@ func checkArenaState(arena *Arena, result allocationResult) {
 	assert(arena.UsedBytes() == result.usedBytes, "unnexpected used bytes.\n exp: %+v\n act: %+v\n", result, arenaStr)
 	assert(arena.CountOfBuckets() == result.countOfBuckets, "unnexpected count of buckets.\n exp: %+v\n act: %+v\n", result, arenaStr)
 	assert(arena.OverallCapacity() == result.overallCapacity, "unnexpected overall capacity.\n exp: %+v\n act: %+v\n", result, arenaStr)
+
+	actualOffset := arena.CurrentOffset()
+	assert(expectedOffset == actualOffset, "offset mismatch.\n exp: %+v\n act: %+v\n", expectedOffset, actualOffset)
 }
 
 func assert(condition bool, msg string, args ...interface{}) {

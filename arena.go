@@ -36,6 +36,10 @@ func (a *Arena) Alloc(size uintptr) (APtr, error) {
 	return result, nil
 }
 
+func (a *Arena) CurrentOffset() AOffset {
+	return a.target.CurrentOffset()
+}
+
 func (a *Arena) String() string {
 	return fmt.Sprintf(
 		"arena{mask: %v countOfAllocations: %v usedBytes: %v overallCapacity %v countOfBuckets: %v}",

@@ -16,10 +16,12 @@ func simpleConsecutivePersonsCase() allocationPath {
 				typeVal:  reflect.TypeOf(person{}),
 			},
 			result: allocationResult{
-				countOfAllocations: 15,
-				usedBytes:          15 * personSize,
-				overallCapacity:    defaultFirstBucketSize,
-				countOfBuckets:     1,
+				countOfAllocations:  15,
+				usedBytes:           15 * personSize,
+				overallCapacity:     defaultFirstBucketSize,
+				countOfBuckets:      1,
+				currentBucketIdx:    0,
+				currentBucketOffset: 15 * personSize,
 			},
 		}},
 	}
@@ -36,10 +38,12 @@ func personAndDeal() allocationPath {
 					typeVal:  reflect.TypeOf(person{}),
 				},
 				result: allocationResult{
-					countOfAllocations: 1,
-					usedBytes:          personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
+					countOfAllocations:  1,
+					usedBytes:           personSize,
+					overallCapacity:     defaultFirstBucketSize,
+					countOfBuckets:      1,
+					currentBucketIdx:    0,
+					currentBucketOffset: personSize,
 				},
 			},
 			{
@@ -49,10 +53,12 @@ func personAndDeal() allocationPath {
 					typeVal:  reflect.TypeOf(deal{}),
 				},
 				result: allocationResult{
-					countOfAllocations: 2,
-					usedBytes:          personSize + dealSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
+					countOfAllocations:  2,
+					usedBytes:           personSize + dealSize,
+					overallCapacity:     defaultFirstBucketSize,
+					countOfBuckets:      1,
+					currentBucketIdx:    0,
+					currentBucketOffset: personSize + dealSize,
 				},
 			},
 		},
@@ -70,10 +76,12 @@ func personAndBooleansAndPerson() allocationPath {
 					typeVal:  reflect.TypeOf(person{}),
 				},
 				result: allocationResult{
-					countOfAllocations: 1,
-					usedBytes:          personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
+					countOfAllocations:  1,
+					usedBytes:           personSize,
+					overallCapacity:     defaultFirstBucketSize,
+					countOfBuckets:      1,
+					currentBucketIdx:    0,
+					currentBucketOffset: personSize,
 				},
 			},
 			{
@@ -83,10 +91,12 @@ func personAndBooleansAndPerson() allocationPath {
 					typeVal:  reflect.TypeOf(true),
 				},
 				result: allocationResult{
-					countOfAllocations: 4,
-					usedBytes:          personSize + 3,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
+					countOfAllocations:  4,
+					usedBytes:           personSize + 3,
+					overallCapacity:     defaultFirstBucketSize,
+					countOfBuckets:      1,
+					currentBucketIdx:    0,
+					currentBucketOffset: personSize + 3,
 				},
 			},
 			{
@@ -96,10 +106,12 @@ func personAndBooleansAndPerson() allocationPath {
 					typeVal:  reflect.TypeOf(person{}),
 				},
 				result: allocationResult{
-					countOfAllocations: 5,
-					usedBytes:          personSize + 3 + personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
+					countOfAllocations:  5,
+					usedBytes:           personSize + 3 + personSize,
+					overallCapacity:     defaultFirstBucketSize,
+					countOfBuckets:      1,
+					currentBucketIdx:    0,
+					currentBucketOffset: personSize + 3 + personSize,
 				},
 			},
 		},
@@ -116,14 +128,21 @@ func TestAllocationPath(t *testing.T) {
 		caseName := strings.Replace(path.name, " ", "_", -1)
 		t.Run(caseName, func(t *testing.T) {
 			ar := &Arena{}
-			checkArenaState(ar, allocationResult{countOfBuckets: 1})
+			checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{arenaMask: ar.target.arenaMask})
 			for _, alloc := range path.allocations {
 				for i := 0; i < alloc.count; i++ {
 					ptr, allocErr := ar.Alloc(alloc.target.typeVal.Size())
 					failOnError(t, allocErr)
 					assert(ptr != APtr{}, "ptr is not nil")
 				}
-				checkArenaState(ar, alloc.result)
+				checkArenaState(ar,
+					alloc.result,
+					AOffset{
+						offset:    uint32(alloc.result.currentBucketOffset),
+						bucketIdx: uint8(alloc.result.currentBucketIdx),
+						arenaMask: ar.target.arenaMask,
+					},
+				)
 			}
 		})
 	}

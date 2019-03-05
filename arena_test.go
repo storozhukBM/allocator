@@ -56,15 +56,13 @@ func TestWrongArenaToRef(t *testing.T) {
 
 func TestAllocationInGeneral(t *testing.T) {
 	ar := &Arena{}
-	checkArenaState(ar, allocationResult{countOfBuckets: 1})
+	checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{})
 	_, paddingAllocErr := ar.Alloc(3) // mess with padding
 	failOnError(t, paddingAllocErr)
-	checkArenaState(ar, allocationResult{
-		countOfAllocations: 1,
-		usedBytes:          3,
-		overallCapacity:    defaultFirstBucketSize,
-		countOfBuckets:     1,
-	})
+	checkArenaState(ar,
+		allocationResult{countOfAllocations: 1, usedBytes: 3, overallCapacity: defaultFirstBucketSize, countOfBuckets: 1},
+		AOffset{offset: 3, bucketIdx: 0, arenaMask: ar.target.arenaMask},
+	)
 	boss := &person{name: "Boss", age: 55}
 
 	fmt.Printf("person size: %+v; person alignment: %+v\n", unsafe.Sizeof(person{}), unsafe.Alignof(person{}))
@@ -90,12 +88,19 @@ func TestAllocationInGeneral(t *testing.T) {
 		cache[p.name] = p
 	}
 
-	checkArenaState(ar, allocationResult{
-		countOfAllocations: 10001,
-		usedBytes:          (10000 * personSize) + 3,
-		overallCapacity:    estimateSizeOfBuckets(5),
-		countOfBuckets:     5,
-	})
+	checkArenaState(ar,
+		allocationResult{
+			countOfAllocations: 10001,
+			usedBytes:          (10000 * personSize) + 3,
+			overallCapacity:    estimateSizeOfBuckets(5),
+			countOfBuckets:     5,
+		},
+		AOffset{
+			offset:    74272,
+			bucketIdx: 4,
+			arenaMask: ar.target.arenaMask,
+		},
+	)
 
 	runtime.GC()
 	time.Sleep(2 * time.Second)

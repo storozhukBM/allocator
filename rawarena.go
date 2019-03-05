@@ -9,11 +9,26 @@ import (
 
 const defaultFirstBucketSize int = 16 * 1024
 
+type AOffset struct {
+	offset    uint32
+	bucketIdx uint8
+
+	arenaMask uint16
+}
+
+func (o AOffset) String() string {
+	return fmt.Sprintf("offset{mask: %v bucketIdx: %v offset: %v}", o.arenaMask, o.bucketIdx, o.offset)
+}
+
 type APtr struct {
 	offset    uint32
 	bucketIdx uint8
 
 	arenaMask uint16
+}
+
+func (p APtr) String() string {
+	return fmt.Sprintf("offset{mask: %v bucketIdx: %v offset: %v}", p.arenaMask, p.bucketIdx, p.offset)
 }
 
 type RawArena struct {
@@ -37,6 +52,14 @@ func (a *RawArena) Alloc(size uintptr) (APtr, error) {
 		offset:    uint32(allocationOffset),
 		arenaMask: a.arenaMask,
 	}, nil
+}
+
+func (a *RawArena) CurrentOffset() AOffset {
+	return AOffset{
+		offset:    uint32(a.currentBucket.offset),
+		bucketIdx: uint8(a.currentBucketIdx),
+		arenaMask: a.arenaMask,
+	}
 }
 
 func (a *RawArena) ToRef(p APtr) unsafe.Pointer {
