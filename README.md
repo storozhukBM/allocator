@@ -3,9 +3,11 @@ Primitive arena allocator
 
 TODO:
 First Release scope
-1. cover with tests "Wrong arena deref"
 1. preallocate arena buffer
 1. arena options
+1. wrap arenas into each other
+1. clear arenas to certain point
+1. bind arena to context.Context (with leak detector in future)
 1. set allocation limits
 1. byte slice allocation options
     1. capacity management
@@ -27,6 +29,10 @@ Second Release
     1. with whole registry allocation limit
     1. by type arena pools
     1. metrics  
+
+Done:
+1. Raw arena implementation
+1. General arena wrapper with basic metrics
 
 
 Build

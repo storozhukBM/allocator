@@ -24,7 +24,7 @@ type RawArena struct {
 	arenaMask uint16
 }
 
-func (a *RawArena) Alloc(size uintptr) APtr {
+func (a *RawArena) Alloc(size uintptr) (APtr, error) {
 	targetSize := int(size)
 	if targetSize > a.currentBucket.availableSize {
 		a.createNewBucket(targetSize)
@@ -36,12 +36,12 @@ func (a *RawArena) Alloc(size uintptr) APtr {
 		bucketIdx: uint8(a.currentBucketIdx),
 		offset:    uint32(allocationOffset),
 		arenaMask: a.arenaMask,
-	}
+	}, nil
 }
 
 func (a *RawArena) ToRef(p APtr) unsafe.Pointer {
 	if p.arenaMask != a.arenaMask {
-		panic("this pointer isn't part of passed arena")
+		panic("pointer isn't part of this arena")
 	}
 	targetBuffer := a.currentBucket.buffer
 	if p.bucketIdx != uint8(a.currentBucketIdx) {

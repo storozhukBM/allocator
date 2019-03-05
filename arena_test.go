@@ -2,141 +2,63 @@ package allocator
 
 import (
 	"fmt"
-	"reflect"
 	"runtime"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 	"unsafe"
 )
 
-func simpleConsecutivePersonsCase() allocationPath {
-	return allocationPath{
-		name: "simple consecutive persons",
-		allocations: []allocation{{
-			count: 15,
-			target: allocationType{
-				typeName: "person",
-				typeVal:  reflect.TypeOf(person{}),
-			},
-			result: allocationResult{
-				countOfAllocations: 15,
-				usedBytes:          15 * personSize,
-				overallCapacity:    defaultFirstBucketSize,
-				countOfBuckets:     1,
-			},
-		}},
-	}
+func TestZeroArenaToRef(t *testing.T) {
+	ar := &Arena{}
+	ref := ar.ToRef(APtr{})
+	fmt.Printf("%+v\n", ref)
 }
 
-func personAndDeal() allocationPath {
-	return allocationPath{
-		name: "person and deal",
-		allocations: []allocation{
-			{
-				count: 1,
-				target: allocationType{
-					typeName: "person",
-					typeVal:  reflect.TypeOf(person{}),
-				},
-				result: allocationResult{
-					countOfAllocations: 1,
-					usedBytes:          personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
-				},
-			},
-			{
-				count: 1,
-				target: allocationType{
-					typeName: "deal",
-					typeVal:  reflect.TypeOf(deal{}),
-				},
-				result: allocationResult{
-					countOfAllocations: 2,
-					usedBytes:          personSize + dealSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
-				},
-			},
-		},
-	}
+func TestArenaMaskGeneration(t *testing.T) {
+	first := &Arena{}
+	firstPtr, firstAllocErr := first.Alloc(1)
+	failOnError(t, firstAllocErr)
+	assert(firstPtr.arenaMask != 0, "mask can't be zero")
+
+	second := &Arena{}
+	secondPtr, secondAllocErr := second.Alloc(1)
+	failOnError(t, secondAllocErr)
+	assert(secondPtr.arenaMask != 0, "mask can't be zero")
+
+	assert(firstPtr.arenaMask != secondPtr.arenaMask, "mask of different arenas should be different")
 }
 
-func personAndBooleansAndPerson() allocationPath {
-	return allocationPath{
-		name: "person few booleans and one more person",
-		allocations: []allocation{
-			{
-				count: 1,
-				target: allocationType{
-					typeName: "person",
-					typeVal:  reflect.TypeOf(person{}),
-				},
-				result: allocationResult{
-					countOfAllocations: 1,
-					usedBytes:          personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
-				},
-			},
-			{
-				count: 3,
-				target: allocationType{
-					typeName: "bool",
-					typeVal:  reflect.TypeOf(true),
-				},
-				result: allocationResult{
-					countOfAllocations: 4,
-					usedBytes:          personSize + 3,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
-				},
-			},
-			{
-				count: 1,
-				target: allocationType{
-					typeName: "person",
-					typeVal:  reflect.TypeOf(person{}),
-				},
-				result: allocationResult{
-					countOfAllocations: 5,
-					usedBytes:          personSize + 3 + personSize,
-					overallCapacity:    defaultFirstBucketSize,
-					countOfBuckets:     1,
-				},
-			},
-		},
-	}
-}
+func TestWrongArenaToRef(t *testing.T) {
+	first := &Arena{}
+	_, firstAllocErr := first.Alloc(1)
+	failOnError(t, firstAllocErr)
 
-func TestAllocationPath(t *testing.T) {
-	cases := []allocationPath{
-		simpleConsecutivePersonsCase(),
-		personAndDeal(),
-		personAndBooleansAndPerson(),
-	}
-	for _, path := range cases {
-		caseName := strings.Replace(path.name, " ", "_", -1)
-		t.Run(caseName, func(t *testing.T) {
-			ar := &Arena{}
-			checkArenaState(ar, allocationResult{countOfBuckets: 1})
-			for _, alloc := range path.allocations {
-				for i := 0; i < alloc.count; i++ {
-					ptr := ar.Alloc(alloc.target.typeVal.Size())
-					assert(ptr != APtr{}, "ptr is not nil")
-				}
-				checkArenaState(ar, alloc.result)
+	second := &Arena{}
+	secondPtr, secondAllocErr := second.Alloc(1)
+	failOnError(t, secondAllocErr)
+
+	panicHappened := false
+	func() {
+		defer func() {
+			err := recover()
+			if err != nil {
+				panicHappened = true
 			}
-		})
-	}
+			errStr := err.(string)
+			assert(errStr == "pointer isn't part of this arena", "panic should happen")
+		}()
+		ref := first.ToRef(secondPtr)
+		fmt.Printf("this should never print: %v\n", ref)
+	}()
+	assert(panicHappened, "wrong arena to ptr panic should happen")
 }
 
 func TestAllocationInGeneral(t *testing.T) {
 	ar := &Arena{}
 	checkArenaState(ar, allocationResult{countOfBuckets: 1})
-	ar.Alloc(3) // mess with padding
+	_, paddingAllocErr := ar.Alloc(3) // mess with padding
+	failOnError(t, paddingAllocErr)
 	checkArenaState(ar, allocationResult{
 		countOfAllocations: 1,
 		usedBytes:          3,
@@ -153,7 +75,8 @@ func TestAllocationInGeneral(t *testing.T) {
 
 	cache := make(map[string]*person)
 	for i := 1; i < 10001; i++ {
-		aPtr := ar.Alloc(unsafe.Sizeof(person{}))
+		aPtr, allocErr := ar.Alloc(unsafe.Sizeof(person{}))
+		failOnError(t, allocErr)
 		ref := ar.ToRef(aPtr)
 		rawPtr := uintptr(ref)
 		p := (*person)(unsafe.Pointer(rawPtr))
@@ -187,79 +110,4 @@ func TestAllocationInGeneral(t *testing.T) {
 			assert(p.manager == boss, "unexpected manager of person: %+v; boss: %+v", p, p.manager)
 		}
 	}
-}
-
-func checkArenaState(arena *Arena, result allocationResult) {
-	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
-	for _, bucket := range arena.target.buckets {
-		arenaStr += fmt.Sprintf("%v\n", bucket)
-	}
-	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.UsedBytes() == result.usedBytes, "unnexpected used bytes.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.CountOfBuckets() == result.countOfBuckets, "unnexpected count of buckets.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.OverallCapacity() == result.overallCapacity, "unnexpected overall capacity.\n exp: %+v\n act: %+v\n", result, arenaStr)
-}
-
-func assert(condition bool, msg string, args ...interface{}) {
-	if !condition {
-		fmt.Printf(msg, args...)
-		fmt.Printf("\n")
-		panic("assertion failed")
-	}
-}
-
-func failOnError(t *testing.T, e error) {
-	if e != nil {
-		t.Error(e)
-		t.FailNow()
-	}
-}
-
-// sum of geometric progression, where defaultFirstBucketSize is scale factor and 2 is common ration
-func estimateSizeOfBuckets(countOfBuckets int) int {
-	twoToThePowerOfBucketsCount := 1 << uint(countOfBuckets)
-	return defaultFirstBucketSize * (1 - twoToThePowerOfBucketsCount) / -1
-}
-
-var (
-	personSize = int(reflect.TypeOf(person{}).Size())
-	dealSize   = int(reflect.TypeOf(deal{}).Size())
-	stringSize = int(reflect.TypeOf("").Size())
-	boolSize   = int(reflect.TypeOf(true).Size())
-)
-
-type person struct {
-	name    string
-	age     uint
-	manager *person
-}
-
-type deal struct {
-	author       person
-	participants []person
-	summary      string
-	mainBody     string
-}
-
-type allocationType struct {
-	typeName string
-	typeVal  reflect.Type
-}
-
-type allocation struct {
-	count  int
-	target allocationType
-	result allocationResult
-}
-
-type allocationResult struct {
-	countOfAllocations int
-	usedBytes          int
-	overallCapacity    int
-	countOfBuckets     int
-}
-
-type allocationPath struct {
-	name        string
-	allocations []allocation
 }

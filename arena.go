@@ -18,9 +18,12 @@ func (a *Arena) ToRef(p APtr) unsafe.Pointer {
 	return a.target.ToRef(p)
 }
 
-func (a *Arena) Alloc(size uintptr) APtr {
+func (a *Arena) Alloc(size uintptr) (APtr, error) {
 	aPtrNil := APtr{}
-	result := a.target.Alloc(size)
+	result, allocErr := a.target.Alloc(size)
+	if allocErr != nil {
+		return APtr{}, nil
+	}
 	if result.bucketIdx != a.lastAllocatedPrt.bucketIdx || a.lastAllocatedPrt == aPtrNil {
 		a.overallCapacity += len(a.target.currentBucket.buffer)
 	}
@@ -30,7 +33,7 @@ func (a *Arena) Alloc(size uintptr) APtr {
 	a.usedBytes += targetSize
 	a.lastAllocatedPrt = result
 
-	return result
+	return result, nil
 }
 
 func (a *Arena) String() string {

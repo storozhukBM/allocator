@@ -11,7 +11,10 @@ func main() {
 	{
 		ar := &allocator.Arena{}
 
-		tPtr := AllocTimePtr(ar, time.Now())
+		tPtr, allocErr := AllocTimePtr(ar, time.Now())
+		if allocErr != nil {
+			panic(allocErr.Error())
+		}
 		fmt.Printf("%+v\n", tPtr)
 		fmt.Printf("%+v\n", tPtr.DeRef(ar))
 
@@ -24,7 +27,10 @@ func main() {
 	{
 		ar := &allocator.RawArena{}
 		timeSize := reflect.TypeOf(time.Time{}).Size()
-		aPtr := ar.Alloc(timeSize)
+		aPtr, allocErr := ar.Alloc(timeSize)
+		if allocErr != nil {
+			panic(allocErr.Error())
+		}
 		timeRef := (*time.Time)(ar.ToRef(aPtr))
 		*timeRef = time.Now()
 
@@ -42,12 +48,15 @@ func main() {
 
 type TimePtr allocator.APtr
 
-func AllocTimePtr(arena *allocator.Arena, target time.Time) TimePtr {
+func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
 	timeSize := reflect.TypeOf(time.Time{}).Size()
-	aPtr := arena.Alloc(timeSize)
+	aPtr, allocErr := arena.Alloc(timeSize)
+	if allocErr != nil {
+		return TimePtr{}, allocErr
+	}
 	tmpPtr := (*time.Time)(arena.ToRef(aPtr))
 	*tmpPtr = target
-	return TimePtr(aPtr)
+	return TimePtr(aPtr), nil
 }
 
 func (t TimePtr) DeRef(arena *allocator.Arena) time.Time {
