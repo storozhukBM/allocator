@@ -1,6 +1,7 @@
 package allocator
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,6 +19,8 @@ func simpleConsecutivePersonsCase() allocationPath {
 			result: allocationResult{
 				countOfAllocations:  15,
 				usedBytes:           15 * personSize,
+				dataBytes:           15 * personSize,
+				paddingOverhead:     0,
 				overallCapacity:     defaultFirstBucketSize,
 				countOfBuckets:      1,
 				currentBucketIdx:    0,
@@ -40,6 +43,8 @@ func personAndDeal() allocationPath {
 				result: allocationResult{
 					countOfAllocations:  1,
 					usedBytes:           personSize,
+					dataBytes:           personSize,
+					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
 					countOfBuckets:      1,
 					currentBucketIdx:    0,
@@ -55,6 +60,8 @@ func personAndDeal() allocationPath {
 				result: allocationResult{
 					countOfAllocations:  2,
 					usedBytes:           personSize + dealSize,
+					dataBytes:           personSize + dealSize,
+					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
 					countOfBuckets:      1,
 					currentBucketIdx:    0,
@@ -78,6 +85,8 @@ func personAndBooleansAndPerson() allocationPath {
 				result: allocationResult{
 					countOfAllocations:  1,
 					usedBytes:           personSize,
+					dataBytes:           personSize,
+					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
 					countOfBuckets:      1,
 					currentBucketIdx:    0,
@@ -93,6 +102,8 @@ func personAndBooleansAndPerson() allocationPath {
 				result: allocationResult{
 					countOfAllocations:  4,
 					usedBytes:           personSize + 3,
+					dataBytes:           personSize + 3,
+					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
 					countOfBuckets:      1,
 					currentBucketIdx:    0,
@@ -107,11 +118,13 @@ func personAndBooleansAndPerson() allocationPath {
 				},
 				result: allocationResult{
 					countOfAllocations:  5,
-					usedBytes:           personSize + 3 + personSize,
+					dataBytes:           personSize + 3 + personSize,
+					usedBytes:           personSize + 3 + 5 + personSize,
+					paddingOverhead:     5,
 					overallCapacity:     defaultFirstBucketSize,
 					countOfBuckets:      1,
 					currentBucketIdx:    0,
-					currentBucketOffset: personSize + 3 + personSize,
+					currentBucketOffset: personSize + 3 + 5 + personSize,
 				},
 			},
 		},
@@ -127,11 +140,16 @@ func TestAllocationPath(t *testing.T) {
 	for _, path := range cases {
 		caseName := strings.Replace(path.name, " ", "_", -1)
 		t.Run(caseName, func(t *testing.T) {
+			fmt.Printf("case: %v\n", path.name)
 			ar := &Arena{}
 			checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{arenaMask: ar.target.arenaMask})
 			for _, alloc := range path.allocations {
+				fmt.Printf(
+					"allocate %v [size: %v; align: %v] x %v \n",
+					alloc.target.typeName, alloc.target.typeVal.Size(), alloc.target.typeVal.Align(), alloc.count,
+				)
 				for i := 0; i < alloc.count; i++ {
-					ptr, allocErr := ar.Alloc(alloc.target.typeVal.Size())
+					ptr, allocErr := ar.Alloc(alloc.target.typeVal.Size(), uintptr(alloc.target.typeVal.Align()))
 					failOnError(t, allocErr)
 					assert(ptr != APtr{}, "ptr is not nil")
 				}

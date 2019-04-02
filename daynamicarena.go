@@ -16,12 +16,14 @@ type DynamicArena struct {
 	arenaMask uint16
 }
 
-func (a *DynamicArena) Alloc(size uintptr) (APtr, error) {
+func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
 	targetSize := int(size)
-	if targetSize > a.currentArena.availableSize {
-		a.grow(targetSize)
+	targetAlignment := int(alignment)
+	padding := a.currentArena.calculateRequiredPadding(targetAlignment)
+	if targetSize+padding > a.currentArena.availableSize {
+		a.grow(targetSize + padding)
 	}
-	result, allocErr := a.currentArena.Alloc(size)
+	result, allocErr := a.currentArena.Alloc(size, alignment)
 	if allocErr != nil {
 		return APtr{}, allocErr
 	}

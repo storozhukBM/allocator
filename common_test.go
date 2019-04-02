@@ -19,7 +19,9 @@ type allocation struct {
 
 type allocationResult struct {
 	countOfAllocations int
+	dataBytes          int
 	usedBytes          int
+	paddingOverhead    int
 	overallCapacity    int
 	countOfBuckets     int
 
@@ -37,10 +39,13 @@ func checkArenaState(arena *Arena, result allocationResult, expectedOffset AOffs
 	for _, bucket := range arena.target.arenas {
 		arenaStr += fmt.Sprintf("%v\n", bucket)
 	}
-	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.UsedBytes() == result.usedBytes, "unnexpected used bytes.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.CountOfBuckets() == result.countOfBuckets, "unnexpected count of buckets.\n exp: %+v\n act: %+v\n", result, arenaStr)
-	assert(arena.OverallCapacity() == result.overallCapacity, "unnexpected overall capacity.\n exp: %+v\n act: %+v\n", result, arenaStr)
+	assertMsg := fmt.Sprintf("\n exp: %+v\n act: %+v\n", result, arenaStr)
+	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations %v", assertMsg)
+	assert(arena.UsedBytes() == result.usedBytes, "unnexpected used bytes %v", assertMsg)
+	assert(arena.DataBytes() == result.dataBytes, "unnexpected data bytes %v", assertMsg)
+	assert(arena.PaddingOverhead() == result.paddingOverhead, "unnexpected padding overhead %v", assertMsg)
+	assert(arena.CountOfBuckets() == result.countOfBuckets, "unnexpected count of buckets %v", assertMsg)
+	assert(arena.OverallCapacity() == result.overallCapacity, "unnexpected overall capacity %v", assertMsg)
 
 	actualOffset := arena.CurrentOffset()
 	assert(expectedOffset == actualOffset, "offset mismatch.\n exp: %+v\n act: %+v\n", expectedOffset, actualOffset)
@@ -68,10 +73,17 @@ func estimateSizeOfBuckets(countOfBuckets int) int {
 }
 
 var (
-	personSize = int(reflect.TypeOf(person{}).Size())
-	dealSize   = int(reflect.TypeOf(deal{}).Size())
-	stringSize = int(reflect.TypeOf("").Size())
-	boolSize   = int(reflect.TypeOf(true).Size())
+	personSize  = int(reflect.TypeOf(person{}).Size())
+	personAlign = int(reflect.TypeOf(person{}).Align())
+
+	dealSize  = int(reflect.TypeOf(deal{}).Size())
+	dealAlign = int(reflect.TypeOf(deal{}).Align())
+
+	stringSize  = int(reflect.TypeOf("").Size())
+	stringAlign = int(reflect.TypeOf("").Align())
+
+	boolSize  = int(reflect.TypeOf(true).Size())
+	boolAlign = int(reflect.TypeOf(true).Align())
 )
 
 type person struct {

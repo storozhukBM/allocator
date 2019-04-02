@@ -17,12 +17,12 @@ func TestZeroArenaToRef(t *testing.T) {
 
 func TestArenaMaskGeneration(t *testing.T) {
 	first := &Arena{}
-	firstPtr, firstAllocErr := first.Alloc(1)
+	firstPtr, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 	assert(firstPtr.arenaMask != 0, "mask can't be zero")
 
 	second := &Arena{}
-	secondPtr, secondAllocErr := second.Alloc(1)
+	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 	assert(secondPtr.arenaMask != 0, "mask can't be zero")
 
@@ -31,11 +31,11 @@ func TestArenaMaskGeneration(t *testing.T) {
 
 func TestWrongArenaToRef(t *testing.T) {
 	first := &Arena{}
-	_, firstAllocErr := first.Alloc(1)
+	_, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 
 	second := &Arena{}
-	secondPtr, secondAllocErr := second.Alloc(1)
+	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 
 	panicHappened := false
@@ -57,10 +57,10 @@ func TestWrongArenaToRef(t *testing.T) {
 func TestAllocationInGeneral(t *testing.T) {
 	ar := &Arena{}
 	checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{})
-	_, paddingAllocErr := ar.Alloc(3) // mess with padding
+	_, paddingAllocErr := ar.Alloc(3, 1) // mess with padding
 	failOnError(t, paddingAllocErr)
 	checkArenaState(ar,
-		allocationResult{countOfAllocations: 1, usedBytes: 3, overallCapacity: defaultFirstBucketSize, countOfBuckets: 1},
+		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0, overallCapacity: defaultFirstBucketSize, countOfBuckets: 1},
 		AOffset{offset: 3, bucketIdx: 0, arenaMask: ar.target.arenaMask},
 	)
 	boss := &person{name: "Boss", age: 55}
@@ -73,7 +73,7 @@ func TestAllocationInGeneral(t *testing.T) {
 
 	cache := make(map[string]*person)
 	for i := 1; i < 10001; i++ {
-		aPtr, allocErr := ar.Alloc(unsafe.Sizeof(person{}))
+		aPtr, allocErr := ar.Alloc(unsafe.Sizeof(person{}), unsafe.Alignof(person{}))
 		failOnError(t, allocErr)
 		ref := ar.ToRef(aPtr)
 		rawPtr := uintptr(ref)
@@ -91,7 +91,9 @@ func TestAllocationInGeneral(t *testing.T) {
 	checkArenaState(ar,
 		allocationResult{
 			countOfAllocations: 10001,
-			usedBytes:          (10000 * personSize) + 3,
+			usedBytes:          (10000 * personSize) + 32, // one person hasn't fit to the first arena chunk due to padding
+			dataBytes:          (10000 * personSize) + 3,
+			paddingOverhead:    32 - 3,
 			overallCapacity:    estimateSizeOfBuckets(5),
 			countOfBuckets:     5,
 		},

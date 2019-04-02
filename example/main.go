@@ -24,10 +24,10 @@ func main() {
 		fmt.Printf("%+v\n", tPtr.DeRef(ar))
 	}
 
+	timeType := reflect.TypeOf(time.Time{})
 	{
 		ar := &allocator.DynamicArena{}
-		timeSize := reflect.TypeOf(time.Time{}).Size()
-		aPtr, allocErr := ar.Alloc(timeSize)
+		aPtr, allocErr := ar.Alloc(timeType.Size(), uintptr(timeType.Align()))
 		if allocErr != nil {
 			panic(allocErr.Error())
 		}
@@ -47,8 +47,8 @@ func main() {
 
 	{
 		ar := &allocator.RawArena{}
-		timeSize := reflect.TypeOf(time.Time{}).Size()
-		aPtr, allocErr := ar.Alloc(timeSize)
+		timeSize := timeType.Size()
+		aPtr, allocErr := ar.Alloc(timeSize, uintptr(timeType.Align()))
 		if allocErr != nil {
 			panic(allocErr.Error())
 		}
@@ -70,8 +70,8 @@ func main() {
 type TimePtr allocator.APtr
 
 func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
-	timeSize := reflect.TypeOf(time.Time{}).Size()
-	aPtr, allocErr := arena.Alloc(timeSize)
+	targetType := reflect.TypeOf(time.Time{})
+	aPtr, allocErr := arena.Alloc(targetType.Size(), uintptr(targetType.Align()))
 	if allocErr != nil {
 		return TimePtr{}, allocErr
 	}

@@ -36,11 +36,17 @@ type RawArena struct {
 	availableSize int
 }
 
-func (a *RawArena) Alloc(size uintptr) (APtr, error) {
+func (a *RawArena) Alloc(size uintptr, alignment uintptr) (APtr, error) {
 	targetSize := int(size)
 	if targetSize > a.availableSize {
 		return APtr{}, allocationLimit
 	}
+
+	targetAlignment := int(alignment)
+	paddingSize := a.calculateRequiredPadding(targetAlignment)
+	a.offset += paddingSize
+	a.availableSize -= paddingSize
+
 	allocationOffset := a.offset
 	a.offset += targetSize
 	a.availableSize -= targetSize
@@ -65,4 +71,9 @@ func (a *RawArena) ToRef(p APtr) unsafe.Pointer {
 
 func (a *RawArena) String() string {
 	return fmt.Sprintf("rowestarena{size: %v; offset: %v; available: %v}", len(a.buffer), a.offset, a.availableSize)
+}
+
+func (a *RawArena) calculateRequiredPadding(targetAlignment int) int {
+	// go compiler should optimise it and use mask operations
+	return (targetAlignment - (a.offset % targetAlignment)) % targetAlignment
 }
