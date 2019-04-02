@@ -6,7 +6,7 @@ import (
 )
 
 type Arena struct {
-	target           RawArena
+	target           DynamicArena
 	lastAllocatedPrt APtr
 
 	countOfAllocations int
@@ -22,10 +22,10 @@ func (a *Arena) Alloc(size uintptr) (APtr, error) {
 	aPtrNil := APtr{}
 	result, allocErr := a.target.Alloc(size)
 	if allocErr != nil {
-		return APtr{}, nil
+		return APtr{}, allocErr
 	}
 	if result.bucketIdx != a.lastAllocatedPrt.bucketIdx || a.lastAllocatedPrt == aPtrNil {
-		a.overallCapacity += len(a.target.currentBucket.buffer)
+		a.overallCapacity += len(a.target.currentArena.buffer)
 	}
 
 	targetSize := int(size)

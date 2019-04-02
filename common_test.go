@@ -34,7 +34,7 @@ type allocationPath struct {
 
 func checkArenaState(arena *Arena, result allocationResult, expectedOffset AOffset) {
 	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
-	for _, bucket := range arena.target.buckets {
+	for _, bucket := range arena.target.arenas {
 		arenaStr += fmt.Sprintf("%v\n", bucket)
 	}
 	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations.\n exp: %+v\n act: %+v\n", result, arenaStr)

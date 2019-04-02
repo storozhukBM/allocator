@@ -25,6 +25,27 @@ func main() {
 	}
 
 	{
+		ar := &allocator.DynamicArena{}
+		timeSize := reflect.TypeOf(time.Time{}).Size()
+		aPtr, allocErr := ar.Alloc(timeSize)
+		if allocErr != nil {
+			panic(allocErr.Error())
+		}
+		timeRef := (*time.Time)(ar.ToRef(aPtr))
+		*timeRef = time.Now()
+
+		fmt.Printf("%+v\n", aPtr)
+		fmt.Printf("%+v\n", *(*time.Time)(ar.ToRef(aPtr)))
+
+		newTime := (*time.Time)(ar.ToRef(aPtr)).Add(time.Hour)
+		newTimeRef := (*time.Time)(ar.ToRef(aPtr))
+		*newTimeRef = newTime
+
+		fmt.Printf("%+v\n", aPtr)
+		fmt.Printf("%+v\n", *(*time.Time)(ar.ToRef(aPtr)))
+	}
+
+	{
 		ar := &allocator.RawArena{}
 		timeSize := reflect.TypeOf(time.Time{}).Size()
 		aPtr, allocErr := ar.Alloc(timeSize)
