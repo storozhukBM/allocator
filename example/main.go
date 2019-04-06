@@ -9,7 +9,7 @@ import (
 
 func main() {
 	{
-		ar := &allocator.Arena{}
+		ar := &allocator.SimpleArena{}
 
 		tPtr, allocErr := AllocTimePtr(ar, time.Now())
 		if allocErr != nil {
@@ -69,7 +69,7 @@ func main() {
 
 type TimePtr allocator.APtr
 
-func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
+func AllocTimePtr(arena *allocator.SimpleArena, target time.Time) (TimePtr, error) {
 	targetType := reflect.TypeOf(time.Time{})
 	aPtr, allocErr := arena.Alloc(targetType.Size(), uintptr(targetType.Align()))
 	if allocErr != nil {
@@ -80,11 +80,11 @@ func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
 	return TimePtr(aPtr), nil
 }
 
-func (t TimePtr) DeRef(arena *allocator.Arena) time.Time {
+func (t TimePtr) DeRef(arena *allocator.SimpleArena) time.Time {
 	return *(*time.Time)(arena.ToRef(allocator.APtr(t)))
 }
 
-func (t TimePtr) Set(arena *allocator.Arena, target time.Time) {
+func (t TimePtr) Set(arena *allocator.SimpleArena, target time.Time) {
 	tmpPtr := (*time.Time)(arena.ToRef(allocator.APtr(t)))
 	*tmpPtr = target
 }

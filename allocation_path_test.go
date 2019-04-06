@@ -22,7 +22,6 @@ func simpleConsecutivePersonsCase() allocationPath {
 				dataBytes:           15 * personSize,
 				paddingOverhead:     0,
 				overallCapacity:     defaultFirstBucketSize,
-				countOfBuckets:      1,
 				currentBucketIdx:    0,
 				currentBucketOffset: 15 * personSize,
 			},
@@ -46,7 +45,6 @@ func personAndDeal() allocationPath {
 					dataBytes:           personSize,
 					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
-					countOfBuckets:      1,
 					currentBucketIdx:    0,
 					currentBucketOffset: personSize,
 				},
@@ -63,7 +61,6 @@ func personAndDeal() allocationPath {
 					dataBytes:           personSize + dealSize,
 					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
-					countOfBuckets:      1,
 					currentBucketIdx:    0,
 					currentBucketOffset: personSize + dealSize,
 				},
@@ -88,7 +85,6 @@ func personAndBooleansAndPerson() allocationPath {
 					dataBytes:           personSize,
 					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
-					countOfBuckets:      1,
 					currentBucketIdx:    0,
 					currentBucketOffset: personSize,
 				},
@@ -105,7 +101,6 @@ func personAndBooleansAndPerson() allocationPath {
 					dataBytes:           personSize + 3,
 					paddingOverhead:     0,
 					overallCapacity:     defaultFirstBucketSize,
-					countOfBuckets:      1,
 					currentBucketIdx:    0,
 					currentBucketOffset: personSize + 3,
 				},
@@ -122,7 +117,6 @@ func personAndBooleansAndPerson() allocationPath {
 					usedBytes:           personSize + 3 + 5 + personSize,
 					paddingOverhead:     5,
 					overallCapacity:     defaultFirstBucketSize,
-					countOfBuckets:      1,
 					currentBucketIdx:    0,
 					currentBucketOffset: personSize + 3 + 5 + personSize,
 				},
@@ -141,8 +135,8 @@ func TestAllocationPath(t *testing.T) {
 		caseName := strings.Replace(path.name, " ", "_", -1)
 		t.Run(caseName, func(t *testing.T) {
 			fmt.Printf("case: %v\n", path.name)
-			ar := &Arena{}
-			checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{arenaMask: ar.target.arenaMask})
+			ar := &SimpleArena{}
+			checkArenaState(ar, allocationResult{}, AOffset{})
 			for _, alloc := range path.allocations {
 				fmt.Printf(
 					"allocate %v [size: %v; align: %v] x %v \n",
@@ -155,11 +149,11 @@ func TestAllocationPath(t *testing.T) {
 				}
 				checkArenaState(ar,
 					alloc.result,
-					AOffset{
+					AOffset{p: APtr{
 						offset:    uint32(alloc.result.currentBucketOffset),
 						bucketIdx: uint8(alloc.result.currentBucketIdx),
-						arenaMask: ar.target.arenaMask,
-					},
+						arenaMask: ar.target.CurrentOffset().p.arenaMask,
+					}},
 				)
 			}
 		})

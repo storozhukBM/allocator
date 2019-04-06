@@ -23,7 +23,6 @@ type allocationResult struct {
 	usedBytes          int
 	paddingOverhead    int
 	overallCapacity    int
-	countOfBuckets     int
 
 	currentBucketIdx    int
 	currentBucketOffset int
@@ -34,18 +33,14 @@ type allocationPath struct {
 	allocations []allocation
 }
 
-func checkArenaState(arena *Arena, result allocationResult, expectedOffset AOffset) {
+func checkArenaState(arena *SimpleArena, result allocationResult, expectedOffset AOffset) {
 	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
-	for _, bucket := range arena.target.arenas {
-		arenaStr += fmt.Sprintf("%v\n", bucket)
-	}
 	assertMsg := fmt.Sprintf("\n exp: %+v\n act: %+v\n", result, arenaStr)
 	assert(arena.CountOfAllocations() == result.countOfAllocations, "unnexpected count of allocations %v", assertMsg)
 	assert(arena.UsedBytes() == result.usedBytes, "unnexpected used bytes %v", assertMsg)
 	assert(arena.DataBytes() == result.dataBytes, "unnexpected data bytes %v", assertMsg)
 	assert(arena.PaddingOverhead() == result.paddingOverhead, "unnexpected padding overhead %v", assertMsg)
-	assert(arena.CountOfBuckets() == result.countOfBuckets, "unnexpected count of buckets %v", assertMsg)
-	assert(arena.OverallCapacity() == result.overallCapacity, "unnexpected overall capacity %v", assertMsg)
+	assert(arena.Capacity() == result.overallCapacity, "unnexpected overall capacity %v", assertMsg)
 
 	actualOffset := arena.CurrentOffset()
 	assert(expectedOffset == actualOffset, "offset mismatch.\n exp: %+v\n act: %+v\n", expectedOffset, actualOffset)

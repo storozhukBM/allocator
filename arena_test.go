@@ -10,18 +10,18 @@ import (
 )
 
 func TestZeroArenaToRef(t *testing.T) {
-	ar := &Arena{}
+	ar := &SimpleArena{}
 	ref := ar.ToRef(APtr{})
 	fmt.Printf("%+v\n", ref)
 }
 
 func TestArenaMaskGeneration(t *testing.T) {
-	first := &Arena{}
+	first := &SimpleArena{}
 	firstPtr, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 	assert(firstPtr.arenaMask != 0, "mask can't be zero")
 
-	second := &Arena{}
+	second := &SimpleArena{}
 	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 	assert(secondPtr.arenaMask != 0, "mask can't be zero")
@@ -30,11 +30,11 @@ func TestArenaMaskGeneration(t *testing.T) {
 }
 
 func TestWrongArenaToRef(t *testing.T) {
-	first := &Arena{}
+	first := &SimpleArena{}
 	_, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 
-	second := &Arena{}
+	second := &SimpleArena{}
 	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 
@@ -55,13 +55,13 @@ func TestWrongArenaToRef(t *testing.T) {
 }
 
 func TestAllocationInGeneral(t *testing.T) {
-	ar := &Arena{}
-	checkArenaState(ar, allocationResult{countOfBuckets: 1}, AOffset{})
+	ar := &SimpleArena{}
+	checkArenaState(ar, allocationResult{}, AOffset{})
 	_, paddingAllocErr := ar.Alloc(3, 1) // mess with padding
 	failOnError(t, paddingAllocErr)
 	checkArenaState(ar,
-		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0, overallCapacity: defaultFirstBucketSize, countOfBuckets: 1},
-		AOffset{offset: 3, bucketIdx: 0, arenaMask: ar.target.arenaMask},
+		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0, overallCapacity: defaultFirstBucketSize},
+		AOffset{p: APtr{offset: 3, bucketIdx: 0, arenaMask: ar.target.CurrentOffset().p.arenaMask}},
 	)
 	boss := &person{name: "Boss", age: 55}
 
@@ -95,13 +95,12 @@ func TestAllocationInGeneral(t *testing.T) {
 			dataBytes:          (10000 * personSize) + 3,
 			paddingOverhead:    32 - 3,
 			overallCapacity:    estimateSizeOfBuckets(5),
-			countOfBuckets:     5,
 		},
-		AOffset{
+		AOffset{p: APtr{
 			offset:    74272,
 			bucketIdx: 4,
-			arenaMask: ar.target.arenaMask,
-		},
+			arenaMask: ar.target.CurrentOffset().p.arenaMask,
+		}},
 	)
 
 	runtime.GC()

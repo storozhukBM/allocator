@@ -13,13 +13,15 @@ type DynamicArena struct {
 	currentArena    RawArena
 	currentArenaIdx int
 
+	overallCapacity int
+
 	arenaMask uint16
 }
 
 func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
 	targetSize := int(size)
 	targetAlignment := int(alignment)
-	padding := a.currentArena.calculateRequiredPadding(targetAlignment)
+	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
 	if targetSize+padding > a.currentArena.availableSize {
 		a.grow(targetSize + padding)
 	}
@@ -34,8 +36,8 @@ func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
 
 func (a *DynamicArena) CurrentOffset() AOffset {
 	offset := a.currentArena.CurrentOffset()
-	offset.bucketIdx = uint8(a.currentArenaIdx)
-	offset.arenaMask = a.arenaMask
+	offset.p.bucketIdx = uint8(a.currentArenaIdx)
+	offset.p.arenaMask = a.arenaMask
 	return offset
 }
 
@@ -57,6 +59,14 @@ func (a *DynamicArena) String() string {
 	return fmt.Sprintf("arena{mask: %v}", a.arenaMask)
 }
 
+func (a *DynamicArena) AvailableSize() int {
+	return a.currentArena.AvailableSize()
+}
+
+func (a *DynamicArena) Capacity() int {
+	return a.overallCapacity
+}
+
 func (a *DynamicArena) grow(requiredAvailableSize int) {
 	a.init()
 	minSizeOfNewArena := max(defaultFirstBucketSize, requiredAvailableSize*2)
@@ -69,6 +79,7 @@ func (a *DynamicArena) grow(requiredAvailableSize int) {
 		a.arenas = append(a.arenas, a.currentArena)
 		a.currentArenaIdx += 1
 	}
+	a.overallCapacity += newSize
 	a.currentArena = newArena
 }
 
