@@ -6,8 +6,7 @@ type arena interface {
 	Alloc(size uintptr, alignment uintptr) (APtr, error)
 	CurrentOffset() AOffset
 	ToRef(p APtr) unsafe.Pointer
-	AvailableSize() int
-	Capacity() int
+	Metrics() ArenaMetrics
 }
 
 func calculateRequiredPadding(o AOffset, targetAlignment int) int {

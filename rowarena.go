@@ -27,6 +27,13 @@ func (o AOffset) String() string {
 	return o.p.String()
 }
 
+type ArenaMetrics struct {
+	UsedBytes      int
+	AvailableBytes int
+	AllocatedBytes int
+	MaxCapacity    int
+}
+
 type RawArena struct {
 	buffer        []byte
 	offset        int
@@ -62,10 +69,11 @@ func (a *RawArena) String() string {
 	return fmt.Sprintf("rowestarena{size: %v; offset: %v; available: %v}", len(a.buffer), a.offset, a.availableSize)
 }
 
-func (a *RawArena) AvailableSize() int {
-	return a.availableSize
-}
-
-func (a *RawArena) Capacity() int {
-	return len(a.buffer)
+func (a *RawArena) Metrics() ArenaMetrics {
+	return ArenaMetrics{
+		UsedBytes:      a.offset,
+		AvailableBytes: a.availableSize,
+		AllocatedBytes: len(a.buffer),
+		MaxCapacity:    len(a.buffer),
+	}
 }

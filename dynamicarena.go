@@ -2,6 +2,7 @@ package allocator
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"unsafe"
 )
@@ -13,14 +14,14 @@ type DynamicArena struct {
 	currentArena    RawArena
 	currentArenaIdx int
 
-	overallCapacity int
+	allocatedBytes int
 
 	arenaMask uint16
 }
 
 func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
 	targetSize := int(size)
-	targetAlignment := int(alignment)
+	targetAlignment := max(int(alignment), 1)
 	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
 	if targetSize+padding > a.currentArena.availableSize {
 		a.grow(targetSize + padding)
@@ -59,12 +60,14 @@ func (a *DynamicArena) String() string {
 	return fmt.Sprintf("arena{mask: %v}", a.arenaMask)
 }
 
-func (a *DynamicArena) AvailableSize() int {
-	return a.currentArena.AvailableSize()
-}
-
-func (a *DynamicArena) Capacity() int {
-	return a.overallCapacity
+func (a *DynamicArena) Metrics() ArenaMetrics {
+	currentArenaMetrics := a.currentArena.Metrics()
+	return ArenaMetrics{
+		UsedBytes:      a.allocatedBytes - currentArenaMetrics.AvailableBytes,
+		AvailableBytes: currentArenaMetrics.AvailableBytes,
+		AllocatedBytes: a.allocatedBytes,
+		MaxCapacity:    a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32,
+	}
 }
 
 func (a *DynamicArena) grow(requiredAvailableSize int) {
@@ -79,7 +82,7 @@ func (a *DynamicArena) grow(requiredAvailableSize int) {
 		a.arenas = append(a.arenas, a.currentArena)
 		a.currentArenaIdx += 1
 	}
-	a.overallCapacity += newSize
+	a.allocatedBytes += newSize
 	a.currentArena = newArena
 }
 

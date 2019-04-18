@@ -60,7 +60,7 @@ func TestAllocationInGeneral(t *testing.T) {
 	_, paddingAllocErr := ar.Alloc(3, 1) // mess with padding
 	failOnError(t, paddingAllocErr)
 	checkArenaState(ar,
-		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0, overallCapacity: defaultFirstBucketSize},
+		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0},
 		AOffset{p: APtr{offset: 3, bucketIdx: 0, arenaMask: ar.target.CurrentOffset().p.arenaMask}},
 	)
 	boss := &person{name: "Boss", age: 55}
@@ -94,7 +94,6 @@ func TestAllocationInGeneral(t *testing.T) {
 			usedBytes:          (10000 * personSize) + 32, // one person hasn't fit to the first arena chunk due to padding
 			dataBytes:          (10000 * personSize) + 3,
 			paddingOverhead:    32 - 3,
-			overallCapacity:    estimateSizeOfBuckets(5),
 		},
 		AOffset{p: APtr{
 			offset:    74272,

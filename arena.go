@@ -5,6 +5,13 @@ import (
 	"unsafe"
 )
 
+type EnhancedArenaMetrics struct {
+	ArenaMetrics
+	CountOfAllocations int
+	PaddingOverhead    int
+	DataBytes          int
+}
+
 type SimpleArena struct {
 	target arena
 
@@ -12,7 +19,7 @@ type SimpleArena struct {
 	paddingOverhead    int
 	dataBytes          int
 	usedBytes          int
-	overallCapacity    int
+	allocatedBytes     int
 }
 
 func (a *SimpleArena) ToRef(p APtr) unsafe.Pointer {
@@ -29,7 +36,8 @@ func (a *SimpleArena) Alloc(size, alignment uintptr) (APtr, error) {
 
 	targetSize := int(size)
 	a.countOfAllocations += 1
-	a.usedBytes = a.target.Capacity() - a.target.AvailableSize()
+	arenaMetrics := a.target.Metrics()
+	a.usedBytes = arenaMetrics.AllocatedBytes - arenaMetrics.AvailableBytes
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
 
@@ -45,36 +53,31 @@ func (a *SimpleArena) String() string {
 	a.init()
 	offset := a.target.CurrentOffset()
 	return fmt.Sprintf(
-		"arena{offset: %v countOfAllocations: %v dataBytes: %v usedBytes: %v paddingOverhead %v overallCapacity %v}",
-		offset, a.countOfAllocations, a.dataBytes, a.usedBytes, a.paddingOverhead, a.overallCapacity,
+		"arena{offset: %v countOfAllocations: %v dataBytes: %v usedBytes: %v paddingOverhead %v allocatedBytes %v}",
+		offset, a.countOfAllocations, a.dataBytes, a.usedBytes, a.paddingOverhead, a.allocatedBytes,
 	)
 }
 
-func (a *SimpleArena) AvailableSize() int {
-	if a.target == nil {
-		return 0
+func (a *SimpleArena) Metrics() ArenaMetrics {
+	result := ArenaMetrics{
+		UsedBytes:      a.usedBytes,
+		AllocatedBytes: a.allocatedBytes,
 	}
-	return a.target.AvailableSize()
+	if a.target != nil {
+		targetArenaMetrics := a.target.Metrics()
+		result.AvailableBytes = targetArenaMetrics.AvailableBytes
+		result.MaxCapacity = targetArenaMetrics.MaxCapacity
+	}
+	return result
 }
 
-func (a *SimpleArena) Capacity() int {
-	return a.overallCapacity
-}
-
-func (a *SimpleArena) CountOfAllocations() int {
-	return a.countOfAllocations
-}
-
-func (a *SimpleArena) UsedBytes() int {
-	return a.usedBytes
-}
-
-func (a *SimpleArena) DataBytes() int {
-	return a.dataBytes
-}
-
-func (a *SimpleArena) PaddingOverhead() int {
-	return a.paddingOverhead
+func (a *SimpleArena) EnhancedMetrics() EnhancedArenaMetrics {
+	return EnhancedArenaMetrics{
+		ArenaMetrics:       a.Metrics(),
+		CountOfAllocations: a.countOfAllocations,
+		PaddingOverhead:    a.paddingOverhead,
+		DataBytes:          a.dataBytes,
+	}
 }
 
 func (a *SimpleArena) init() {
