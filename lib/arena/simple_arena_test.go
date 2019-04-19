@@ -1,4 +1,4 @@
-package allocator
+package arena
 
 import (
 	"fmt"
@@ -10,18 +10,18 @@ import (
 )
 
 func TestZeroArenaToRef(t *testing.T) {
-	ar := &SimpleArena{}
-	ref := ar.ToRef(APtr{})
+	ar := &Simple{}
+	ref := ar.ToRef(Ptr{})
 	fmt.Printf("%+v\n", ref)
 }
 
 func TestArenaMaskGeneration(t *testing.T) {
-	first := &SimpleArena{}
+	first := &Simple{}
 	firstPtr, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 	assert(firstPtr.arenaMask != 0, "mask can't be zero")
 
-	second := &SimpleArena{}
+	second := &Simple{}
 	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 	assert(secondPtr.arenaMask != 0, "mask can't be zero")
@@ -30,11 +30,11 @@ func TestArenaMaskGeneration(t *testing.T) {
 }
 
 func TestWrongArenaToRef(t *testing.T) {
-	first := &SimpleArena{}
+	first := &Simple{}
 	_, firstAllocErr := first.Alloc(1, 1)
 	failOnError(t, firstAllocErr)
 
-	second := &SimpleArena{}
+	second := &Simple{}
 	secondPtr, secondAllocErr := second.Alloc(1, 1)
 	failOnError(t, secondAllocErr)
 
@@ -55,13 +55,13 @@ func TestWrongArenaToRef(t *testing.T) {
 }
 
 func TestAllocationInGeneral(t *testing.T) {
-	ar := &SimpleArena{}
-	checkArenaState(ar, allocationResult{}, AOffset{})
+	ar := &Simple{}
+	checkSimpleArena(ar, allocationResult{}, Offset{})
 	_, paddingAllocErr := ar.Alloc(3, 1) // mess with padding
 	failOnError(t, paddingAllocErr)
-	checkArenaState(ar,
+	checkSimpleArena(ar,
 		allocationResult{countOfAllocations: 1, usedBytes: 3, dataBytes: 3, paddingOverhead: 0},
-		AOffset{p: APtr{offset: 3, bucketIdx: 0, arenaMask: ar.target.CurrentOffset().p.arenaMask}},
+		Offset{p: Ptr{offset: 3, bucketIdx: 0, arenaMask: ar.target.CurrentOffset().p.arenaMask}},
 	)
 	boss := &person{name: "Boss", age: 55}
 
@@ -69,7 +69,7 @@ func TestAllocationInGeneral(t *testing.T) {
 	fmt.Printf("deal size: %+v; deal alignment: %+v\n", unsafe.Sizeof(deal{}), unsafe.Alignof(deal{}))
 	fmt.Printf("string size: %+v; string alignment: %+v\n", unsafe.Sizeof(""), unsafe.Alignof(""))
 	fmt.Printf("bool size: %+v; bool alignment: %+v\n", unsafe.Sizeof(true), unsafe.Alignof(true))
-	fmt.Printf("APtr size: %+v; APtr alignment: %+v\n", unsafe.Sizeof(APtr{}), unsafe.Alignof(APtr{}))
+	fmt.Printf("Ptr size: %+v; Ptr alignment: %+v\n", unsafe.Sizeof(Ptr{}), unsafe.Alignof(Ptr{}))
 
 	cache := make(map[string]*person)
 	for i := 1; i < 10001; i++ {
@@ -88,14 +88,14 @@ func TestAllocationInGeneral(t *testing.T) {
 		cache[p.name] = p
 	}
 
-	checkArenaState(ar,
+	checkSimpleArena(ar,
 		allocationResult{
 			countOfAllocations: 10001,
 			usedBytes:          (10000 * personSize) + 32, // one person hasn't fit to the first arena chunk due to padding
 			dataBytes:          (10000 * personSize) + 3,
 			paddingOverhead:    32 - 3,
 		},
-		AOffset{p: APtr{
+		Offset{p: Ptr{
 			offset:    74272,
 			bucketIdx: 4,
 			arenaMask: ar.target.CurrentOffset().p.arenaMask,

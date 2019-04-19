@@ -1,4 +1,4 @@
-package allocator
+package arena
 
 import (
 	"errors"
@@ -8,42 +8,49 @@ import (
 
 var allocationLimit = errors.New("allocation limit")
 
-type APtr struct {
+type Ptr struct {
 	offset    uint32
 	bucketIdx uint8
 
 	arenaMask uint16
 }
 
-func (p APtr) String() string {
+func (p Ptr) String() string {
 	return fmt.Sprintf("{mask: %v bucketIdx: %v offset: %v}", p.arenaMask, p.bucketIdx, p.offset)
 }
 
-type AOffset struct {
-	p APtr
+type Offset struct {
+	p Ptr
 }
 
-func (o AOffset) String() string {
+func (o Offset) String() string {
 	return o.p.String()
 }
 
-type ArenaMetrics struct {
+type Metrics struct {
 	UsedBytes      int
 	AvailableBytes int
 	AllocatedBytes int
 	MaxCapacity    int
 }
 
-type RawArena struct {
+type Raw struct {
 	buffer        []byte
 	offset        int
 	availableSize int
 }
 
-func (a *RawArena) Alloc(size uintptr, alignment uintptr) (APtr, error) {
+func NewRawArena(size uint) *Raw {
+	return &Raw{
+		buffer:        make([]byte, int(size)),
+		availableSize: int(size),
+	}
+}
+
+func (a *Raw) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 	targetSize := int(size)
 	if targetSize > a.availableSize {
-		return APtr{}, allocationLimit
+		return Ptr{}, allocationLimit
 	}
 
 	targetAlignment := int(alignment)
@@ -54,23 +61,23 @@ func (a *RawArena) Alloc(size uintptr, alignment uintptr) (APtr, error) {
 	allocationOffset := a.offset
 	a.offset += targetSize
 	a.availableSize -= targetSize
-	return APtr{offset: uint32(allocationOffset)}, nil
+	return Ptr{offset: uint32(allocationOffset)}, nil
 }
 
-func (a *RawArena) CurrentOffset() AOffset {
-	return AOffset{p: APtr{offset: uint32(a.offset)}}
+func (a *Raw) CurrentOffset() Offset {
+	return Offset{p: Ptr{offset: uint32(a.offset)}}
 }
 
-func (a *RawArena) ToRef(p APtr) unsafe.Pointer {
+func (a *Raw) ToRef(p Ptr) unsafe.Pointer {
 	return unsafe.Pointer(&a.buffer[int(p.offset)])
 }
 
-func (a *RawArena) String() string {
+func (a *Raw) String() string {
 	return fmt.Sprintf("rowestarena{size: %v; offset: %v; available: %v}", len(a.buffer), a.offset, a.availableSize)
 }
 
-func (a *RawArena) Metrics() ArenaMetrics {
-	return ArenaMetrics{
+func (a *Raw) Metrics() Metrics {
+	return Metrics{
 		UsedBytes:      a.offset,
 		AvailableBytes: a.availableSize,
 		AllocatedBytes: len(a.buffer),

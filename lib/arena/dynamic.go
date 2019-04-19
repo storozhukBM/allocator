@@ -1,4 +1,4 @@
-package allocator
+package arena
 
 import (
 	"fmt"
@@ -9,9 +9,9 @@ import (
 
 const defaultFirstBucketSize int = 16 * 1024
 
-type DynamicArena struct {
-	arenas          []RawArena
-	currentArena    RawArena
+type Dynamic struct {
+	arenas          []Raw
+	currentArena    Raw
 	currentArenaIdx int
 
 	allocatedBytes int
@@ -19,7 +19,13 @@ type DynamicArena struct {
 	arenaMask uint16
 }
 
-func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
+func dynamicWithInitialCapacity(size uint) *Dynamic {
+	result := &Dynamic{}
+	result.grow(int(size))
+	return result
+}
+
+func (a *Dynamic) Alloc(size, alignment uintptr) (Ptr, error) {
 	targetSize := int(size)
 	targetAlignment := max(int(alignment), 1)
 	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
@@ -28,21 +34,21 @@ func (a *DynamicArena) Alloc(size, alignment uintptr) (APtr, error) {
 	}
 	result, allocErr := a.currentArena.Alloc(size, alignment)
 	if allocErr != nil {
-		return APtr{}, allocErr
+		return Ptr{}, allocErr
 	}
 	result.bucketIdx = uint8(a.currentArenaIdx)
 	result.arenaMask = a.arenaMask
 	return result, nil
 }
 
-func (a *DynamicArena) CurrentOffset() AOffset {
+func (a *Dynamic) CurrentOffset() Offset {
 	offset := a.currentArena.CurrentOffset()
 	offset.p.bucketIdx = uint8(a.currentArenaIdx)
 	offset.p.arenaMask = a.arenaMask
 	return offset
 }
 
-func (a *DynamicArena) ToRef(p APtr) unsafe.Pointer {
+func (a *Dynamic) ToRef(p Ptr) unsafe.Pointer {
 	if p.arenaMask != a.arenaMask {
 		panic("pointer isn't part of this arena")
 	}
@@ -56,13 +62,13 @@ func (a *DynamicArena) ToRef(p APtr) unsafe.Pointer {
 	return targetArena.ToRef(p)
 }
 
-func (a *DynamicArena) String() string {
+func (a *Dynamic) String() string {
 	return fmt.Sprintf("arena{mask: %v}", a.arenaMask)
 }
 
-func (a *DynamicArena) Metrics() ArenaMetrics {
+func (a *Dynamic) Metrics() Metrics {
 	currentArenaMetrics := a.currentArena.Metrics()
-	return ArenaMetrics{
+	return Metrics{
 		UsedBytes:      a.allocatedBytes - currentArenaMetrics.AvailableBytes,
 		AvailableBytes: currentArenaMetrics.AvailableBytes,
 		AllocatedBytes: a.allocatedBytes,
@@ -70,23 +76,20 @@ func (a *DynamicArena) Metrics() ArenaMetrics {
 	}
 }
 
-func (a *DynamicArena) grow(requiredAvailableSize int) {
+func (a *Dynamic) grow(requiredAvailableSize int) {
 	a.init()
 	minSizeOfNewArena := max(defaultFirstBucketSize, requiredAvailableSize*2)
 	newSize := max(len(a.currentArena.buffer)*2, minSizeOfNewArena)
-	newArena := RawArena{
-		buffer:        make([]byte, newSize),
-		availableSize: newSize,
-	}
+	newArena := NewRawArena(uint(newSize))
 	if a.currentArena.buffer != nil {
 		a.arenas = append(a.arenas, a.currentArena)
 		a.currentArenaIdx += 1
 	}
 	a.allocatedBytes += newSize
-	a.currentArena = newArena
+	a.currentArena = *newArena
 }
 
-func (a *DynamicArena) init() {
+func (a *Dynamic) init() {
 	if a.arenaMask == 0 {
 		a.arenaMask = uint16(rand.Uint32()) | 1
 	}

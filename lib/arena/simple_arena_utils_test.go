@@ -1,4 +1,4 @@
-package allocator
+package arena
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ type allocationPath struct {
 	allocations []allocation
 }
 
-func checkArenaState(arena *SimpleArena, result allocationResult, expectedOffset AOffset) {
+func checkSimpleArena(arena *Simple, result allocationResult, expectedOffset Offset) {
 	arenaStr := fmt.Sprintf("arena: %+v\n", arena)
 	assertMsg := fmt.Sprintf("\n exp: %+v\n act: %+v\n", result, arenaStr)
 	metrics := arena.EnhancedMetrics()

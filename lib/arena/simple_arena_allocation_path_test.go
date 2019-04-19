@@ -1,4 +1,4 @@
-package allocator
+package arena
 
 import (
 	"fmt"
@@ -129,8 +129,8 @@ func TestAllocationPath(t *testing.T) {
 		caseName := strings.Replace(path.name, " ", "_", -1)
 		t.Run(caseName, func(t *testing.T) {
 			fmt.Printf("case: %v\n", path.name)
-			ar := &SimpleArena{}
-			checkArenaState(ar, allocationResult{}, AOffset{})
+			ar := &Simple{}
+			checkSimpleArena(ar, allocationResult{}, Offset{})
 			for _, alloc := range path.allocations {
 				fmt.Printf(
 					"allocate %v [size: %v; align: %v] x %v \n",
@@ -139,11 +139,11 @@ func TestAllocationPath(t *testing.T) {
 				for i := 0; i < alloc.count; i++ {
 					ptr, allocErr := ar.Alloc(alloc.target.typeVal.Size(), uintptr(alloc.target.typeVal.Align()))
 					failOnError(t, allocErr)
-					assert(ptr != APtr{}, "ptr is not nil")
+					assert(ptr != Ptr{}, "ptr is not nil")
 				}
-				checkArenaState(ar,
+				checkSimpleArena(ar,
 					alloc.result,
-					AOffset{p: APtr{
+					Offset{p: Ptr{
 						offset:    uint32(alloc.result.currentBucketOffset),
 						bucketIdx: uint8(alloc.result.currentBucketIdx),
 						arenaMask: ar.target.CurrentOffset().p.arenaMask,
