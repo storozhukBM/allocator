@@ -3,7 +3,6 @@ Primitive arena allocator
 
 TODO:
 First Release scope
-1. wrap arenas into each other
 1. clear arenas to certain point
 1. bind arena to context.Context (with leak detector in future)
 1. set allocation limits
@@ -34,6 +33,7 @@ Done:
 1. Support fetch current allocation offset
 1. Preallocate arena buffer
 1. Arena options
+1. wrap arenas into each other
 
 
 Build

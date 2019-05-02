@@ -34,6 +34,13 @@ type Metrics struct {
 	MaxCapacity    int
 }
 
+func (p Metrics) String() string {
+	return fmt.Sprintf(
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity,
+	)
+}
+
 type Raw struct {
 	buffer        []byte
 	offset        int

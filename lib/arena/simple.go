@@ -19,12 +19,28 @@ type EnhancedMetrics struct {
 	DataBytes          int
 }
 
+func (p EnhancedMetrics) String() string {
+	return fmt.Sprintf(
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
+	)
+}
+
+type AllocResult struct {
+	Size             uintptr
+	Alignment        uintptr
+	ResultingMetrics EnhancedMetrics
+}
+
 type Options struct {
-	InitialCapacity uint
+	InitialCapacity        uint
+	AllocationLimitInBytes uint
 }
 
 type Simple struct {
 	target allocator
+
+	allocationLimitInBytes int
 
 	countOfAllocations int
 	paddingOverhead    int
@@ -38,6 +54,20 @@ func New(opts Options) *Simple {
 	if opts.InitialCapacity > 0 {
 		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
 	}
+	if opts.AllocationLimitInBytes > 0 {
+		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
+	}
+	return result
+}
+
+func SubAllocator(target allocator, opts Options) *Simple {
+	if target == nil {
+		target = New(opts)
+	}
+	result := &Simple{target: target}
+	if opts.AllocationLimitInBytes > 0 {
+		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
+	}
 	return result
 }
 
@@ -48,17 +78,26 @@ func (a *Simple) ToRef(p Ptr) unsafe.Pointer {
 
 func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
+	targetAlignment := max(int(alignment), 1)
+	targetSize := int(size)
+	targetPadding := calculateRequiredPadding(a.target.CurrentOffset(), targetAlignment)
+
+	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding >= a.allocationLimitInBytes {
+		return Ptr{}, allocationLimit
+	}
+
+	beforeCallMetrics := a.target.Metrics()
 	result, allocErr := a.target.Alloc(size, alignment)
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
+	afterCallMetrics := a.target.Metrics()
 
-	targetSize := int(size)
 	a.countOfAllocations += 1
-	arenaMetrics := a.target.Metrics()
-	a.usedBytes = arenaMetrics.AllocatedBytes - arenaMetrics.AvailableBytes
+	a.usedBytes += afterCallMetrics.UsedBytes - beforeCallMetrics.UsedBytes
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
+	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
 
 	return result, nil
 }
@@ -72,8 +111,8 @@ func (a *Simple) String() string {
 	a.init()
 	offset := a.target.CurrentOffset()
 	return fmt.Sprintf(
-		"arena{offset: %v countOfAllocations: %v dataBytes: %v usedBytes: %v paddingOverhead %v allocatedBytes %v}",
-		offset, a.countOfAllocations, a.dataBytes, a.usedBytes, a.paddingOverhead, a.allocatedBytes,
+		"arena{offset: %v metrics: %v}",
+		offset, a.EnhancedMetrics(),
 	)
 }
 
@@ -86,6 +125,9 @@ func (a *Simple) Metrics() Metrics {
 		targetArenaMetrics := a.target.Metrics()
 		result.AvailableBytes = targetArenaMetrics.AvailableBytes
 		result.MaxCapacity = targetArenaMetrics.MaxCapacity
+	}
+	if a.allocationLimitInBytes > 0 {
+		result.MaxCapacity = a.allocationLimitInBytes
 	}
 	return result
 }

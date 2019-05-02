@@ -32,7 +32,7 @@ func (a *Dynamic) Alloc(size, alignment uintptr) (Ptr, error) {
 	if targetSize+padding > a.currentArena.availableSize {
 		a.grow(targetSize + padding)
 	}
-	result, allocErr := a.currentArena.Alloc(size, alignment)
+	result, allocErr := a.currentArena.Alloc(size, uintptr(targetAlignment))
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
