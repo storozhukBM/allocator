@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"strconv"
 	"testing"
-	"time"
 	"unsafe"
 )
 
@@ -103,7 +102,6 @@ func TestAllocationInGeneral(t *testing.T) {
 	)
 
 	runtime.GC()
-	time.Sleep(2 * time.Second)
 
 	for name, p := range cache {
 		expectedAge, parseErr := strconv.Atoi(name)
