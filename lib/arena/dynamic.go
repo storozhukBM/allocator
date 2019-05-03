@@ -26,6 +26,7 @@ func dynamicWithInitialCapacity(size uint) *Dynamic {
 }
 
 func (a *Dynamic) Alloc(size, alignment uintptr) (Ptr, error) {
+	a.init()
 	targetSize := int(size)
 	targetAlignment := max(int(alignment), 1)
 	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
@@ -42,6 +43,7 @@ func (a *Dynamic) Alloc(size, alignment uintptr) (Ptr, error) {
 }
 
 func (a *Dynamic) CurrentOffset() Offset {
+	a.init()
 	offset := a.currentArena.CurrentOffset()
 	offset.p.bucketIdx = uint8(a.currentArenaIdx)
 	offset.p.arenaMask = a.arenaMask
@@ -56,14 +58,12 @@ func (a *Dynamic) ToRef(p Ptr) unsafe.Pointer {
 	if p.bucketIdx != uint8(a.currentArenaIdx) {
 		targetArena = a.arenas[p.bucketIdx]
 	}
-	if targetArena.buffer == nil {
-		return nil
-	}
 	return targetArena.ToRef(p)
 }
 
 func (a *Dynamic) String() string {
-	return fmt.Sprintf("arena{mask: %v}", a.arenaMask)
+	a.init()
+	return fmt.Sprintf("dynarena{mask: %v offset: %v}", a.arenaMask, a.CurrentOffset())
 }
 
 func (a *Dynamic) Metrics() Metrics {
@@ -77,7 +77,6 @@ func (a *Dynamic) Metrics() Metrics {
 }
 
 func (a *Dynamic) grow(requiredAvailableSize int) {
-	a.init()
 	minSizeOfNewArena := max(defaultFirstBucketSize, requiredAvailableSize*2)
 	newSize := max(len(a.currentArena.buffer)*2, minSizeOfNewArena)
 	newArena := NewRawArena(uint(newSize))
@@ -93,11 +92,4 @@ func (a *Dynamic) init() {
 	if a.arenaMask == 0 {
 		a.arenaMask = uint16(rand.Uint32()) | 1
 	}
-}
-
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

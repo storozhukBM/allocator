@@ -53,5 +53,5 @@ go test -v -race ./...
 
 Coverage
 ```
-go test -v -race -coverpkg=./... -coverprofile=coverage.out ./lib/arena/arena_test && go tool cover -html=coverage.out
+go test -coverpkg=./... -coverprofile=coverage.out ./lib/arena/arena_test && go tool cover -html=coverage.out
 ```

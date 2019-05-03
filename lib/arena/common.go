@@ -5,12 +5,16 @@ func calculateRequiredPadding(o Offset, targetAlignment int) int {
 	return (targetAlignment - (int(o.p.offset) % targetAlignment)) % targetAlignment
 }
 
-func clearBytes(buf []byte) {
-	if len(buf) == 0 {
-		return
+func max(a int, b int) int {
+	if a > b {
+		return a
 	}
-	buf[0] = 0
-	for bufPart := 1; bufPart < len(buf); bufPart *= 2 {
-		copy(buf[bufPart:], buf[:bufPart])
+	return b
+}
+
+func min(a int, b int) int {
+	if a < b {
+		return a
 	}
+	return b
 }

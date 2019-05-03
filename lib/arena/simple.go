@@ -2,6 +2,7 @@ package arena
 
 import (
 	"fmt"
+	"math/rand"
 	"unsafe"
 )
 
@@ -38,7 +39,8 @@ type Options struct {
 }
 
 type Simple struct {
-	target allocator
+	target    allocator
+	arenaMask uint16
 
 	allocationLimitInBytes int
 
@@ -53,10 +55,12 @@ func New(opts Options) *Simple {
 	result := &Simple{}
 	if opts.InitialCapacity > 0 {
 		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
+		result.allocatedBytes += result.target.Metrics().AllocatedBytes
 	}
 	if opts.AllocationLimitInBytes > 0 {
 		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
 	}
+	result.init()
 	return result
 }
 
@@ -68,11 +72,19 @@ func SubAllocator(target allocator, opts Options) *Simple {
 	if opts.AllocationLimitInBytes > 0 {
 		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
 	}
+	result.init()
 	return result
 }
 
 func (a *Simple) ToRef(p Ptr) unsafe.Pointer {
-	a.init()
+	if p.arenaMask != a.arenaMask {
+		panic("pointer isn't part of this arena")
+	}
+
+	if a.target == nil {
+		return nil
+	}
+	p.arenaMask = a.target.CurrentOffset().p.arenaMask
 	return a.target.ToRef(p)
 }
 
@@ -82,7 +94,7 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	targetSize := int(size)
 	targetPadding := calculateRequiredPadding(a.target.CurrentOffset(), targetAlignment)
 
-	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding >= a.allocationLimitInBytes {
+	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding > a.allocationLimitInBytes {
 		return Ptr{}, allocationLimit
 	}
 
@@ -99,21 +111,20 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.paddingOverhead = a.usedBytes - a.dataBytes
 	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
 
+	result.arenaMask = a.arenaMask
 	return result, nil
 }
 
 func (a *Simple) CurrentOffset() Offset {
 	a.init()
-	return a.target.CurrentOffset()
+	result := a.target.CurrentOffset()
+	result.p.arenaMask = a.arenaMask
+	return result
 }
 
 func (a *Simple) String() string {
 	a.init()
-	offset := a.target.CurrentOffset()
-	return fmt.Sprintf(
-		"arena{offset: %v metrics: %v}",
-		offset, a.EnhancedMetrics(),
-	)
+	return fmt.Sprintf("arena{mask: %v target: %v}", a.arenaMask, a.target)
 }
 
 func (a *Simple) Metrics() Metrics {
@@ -128,6 +139,7 @@ func (a *Simple) Metrics() Metrics {
 	}
 	if a.allocationLimitInBytes > 0 {
 		result.MaxCapacity = a.allocationLimitInBytes
+		result.AvailableBytes = min(result.AvailableBytes, a.allocationLimitInBytes) - result.UsedBytes
 	}
 	return result
 }
@@ -144,5 +156,8 @@ func (a *Simple) EnhancedMetrics() EnhancedMetrics {
 func (a *Simple) init() {
 	if a.target == nil {
 		a.target = &Dynamic{}
+	}
+	if a.arenaMask == 0 {
+		a.arenaMask = uint16(rand.Uint32()) | 1
 	}
 }

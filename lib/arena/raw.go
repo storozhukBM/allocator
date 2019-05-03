@@ -80,7 +80,7 @@ func (a *Raw) ToRef(p Ptr) unsafe.Pointer {
 }
 
 func (a *Raw) String() string {
-	return fmt.Sprintf("rowestarena{size: %v; offset: %v; available: %v}", len(a.buffer), a.offset, a.availableSize)
+	return fmt.Sprintf("rowarena{%v}", a.CurrentOffset())
 }
 
 func (a *Raw) Metrics() Metrics {
