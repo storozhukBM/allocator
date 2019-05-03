@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/storozhukBM/allocator"
+	"github.com/storozhukBM/allocator/lib/arena"
 	"reflect"
 	"time"
 )
 
 func main() {
 	{
-		ar := &allocator.Arena{}
+		ar := arena.New(arena.Options{})
 
 		tPtr, allocErr := AllocTimePtr(ar, time.Now())
 		if allocErr != nil {
@@ -26,7 +26,7 @@ func main() {
 
 	timeType := reflect.TypeOf(time.Time{})
 	{
-		ar := &allocator.DynamicArena{}
+		ar := &arena.Dynamic{}
 		aPtr, allocErr := ar.Alloc(timeType.Size(), uintptr(timeType.Align()))
 		if allocErr != nil {
 			panic(allocErr.Error())
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	{
-		ar := &allocator.RawArena{}
+		ar := arena.NewRawArena(1024)
 		timeSize := timeType.Size()
 		aPtr, allocErr := ar.Alloc(timeSize, uintptr(timeType.Align()))
 		if allocErr != nil {
@@ -67,9 +67,9 @@ func main() {
 	}
 }
 
-type TimePtr allocator.APtr
+type TimePtr arena.Ptr
 
-func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
+func AllocTimePtr(arena *arena.Simple, target time.Time) (TimePtr, error) {
 	targetType := reflect.TypeOf(time.Time{})
 	aPtr, allocErr := arena.Alloc(targetType.Size(), uintptr(targetType.Align()))
 	if allocErr != nil {
@@ -80,11 +80,11 @@ func AllocTimePtr(arena *allocator.Arena, target time.Time) (TimePtr, error) {
 	return TimePtr(aPtr), nil
 }
 
-func (t TimePtr) DeRef(arena *allocator.Arena) time.Time {
-	return *(*time.Time)(arena.ToRef(allocator.APtr(t)))
+func (t TimePtr) DeRef(a *arena.Simple) time.Time {
+	return *(*time.Time)(a.ToRef(arena.Ptr(t)))
 }
 
-func (t TimePtr) Set(arena *allocator.Arena, target time.Time) {
-	tmpPtr := (*time.Time)(arena.ToRef(allocator.APtr(t)))
+func (t TimePtr) Set(a *arena.Simple, target time.Time) {
+	tmpPtr := (*time.Time)(a.ToRef(arena.Ptr(t)))
 	*tmpPtr = target
 }

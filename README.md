@@ -3,12 +3,8 @@ Primitive arena allocator
 
 TODO:
 First Release scope
-1. preallocate arena buffer
-1. arena options
-1. wrap arenas into each other
 1. clear arenas to certain point
 1. bind arena to context.Context (with leak detector in future)
-1. set allocation limits
 1. byte slice allocation options
     1. capacity management
     1. append function
@@ -34,6 +30,10 @@ Done:
 1. Raw arena implementation
 1. General arena wrapper with basic metrics
 1. Support fetch current allocation offset
+1. Preallocate arena buffer
+1. Arena options
+1. Wrap arenas into each other
+1. Set allocation limits
 
 
 Build
@@ -49,4 +49,9 @@ go build -gcflags -m ./...
 Test
 ```
 go test -v -race ./...
+```
+
+Coverage
+```
+go test -coverpkg=./... -coverprofile=coverage.out ./lib/arena/... && go tool cover -html=coverage.out
 ```
