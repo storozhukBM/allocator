@@ -38,6 +38,25 @@ func TestSimpleSubArena(t *testing.T) {
 	stand.check(t, a)
 }
 
+func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
+	target := &arena.Dynamic{}
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+}
+
+func TestSimpleSubArenaOverRawArena(t *testing.T) {
+	target := arena.NewRawArena(requiredBytesForTest)
+	a := arena.SubAllocator(target, arena.Options{})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	allocSize := uintptr(a.Metrics().AvailableBytes + 1)
+	ptr, allocErr := a.Alloc(allocSize, 1)
+	assert(allocErr != nil, "allocation limit should be triggered")
+	assert(ptr == arena.Ptr{}, "ptr should be empty")
+}
+
 func TestSimpleNestedSubArenas(t *testing.T) {
 	target := arena.New(arena.Options{InitialCapacity: 3 * requiredBytesForTest})
 	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
