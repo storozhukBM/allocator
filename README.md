@@ -3,7 +3,7 @@ Primitive arena allocator
 
 TODO:
 First Release scope
-1. clear arenas to certain point
+1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. byte slice allocation options
     1. capacity management
@@ -16,7 +16,6 @@ First Release scope
 1. whole documentation with notion of unsafe semantics
 
 Second Release
-1. clear whole arena
 1. instrumented arena
 1. close arena function
 1. arena leak detector
@@ -34,6 +33,7 @@ Done:
 1. Arena options
 1. Wrap arenas into each other
 1. Set allocation limits
+1. Clear whole arena
 
 
 Build
@@ -48,7 +48,17 @@ go build -gcflags -m ./...
 
 Test
 ```
-go test -v -race ./...
+go test ./...
+```
+
+Test with debug output
+```
+go test -v ./...
+```
+
+Test with race detector
+```
+go test -count 100 -v -race ./...
 ```
 
 Coverage

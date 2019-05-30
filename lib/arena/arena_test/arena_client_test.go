@@ -12,39 +12,56 @@ func TestSimpleArenaWithoutConstructor(t *testing.T) {
 
 	other := &arena.Simple{}
 	assert(other.ToRef(arena.Ptr{}) == nil, "should resolve to nil")
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
 }
 
 func TestSimpleArenaWithInitialCapacity(t *testing.T) {
-	a := arena.New(arena.Options{InitialCapacity: requiredBytesForTest})
+	a := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
 }
 
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
-	a := arena.New(arena.Options{InitialCapacity: requiredBytesForTest, AllocationLimitInBytes: 2 * requiredBytesForTest})
+	a := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest, AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
 	allocSize := uintptr(a.Metrics().AvailableBytes + 1)
 	ptr, allocErr := a.Alloc(allocSize, 1)
-	assert(allocErr != nil, "allocation limit should be triggered")
+	assert(allocErr == arena.AllocationLimitError, "allocation limit should be triggered")
 	assert(ptr == arena.Ptr{}, "ptr should be empty")
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
 }
 
 func TestSimpleSubArena(t *testing.T) {
-	target := arena.New(arena.Options{InitialCapacity: requiredBytesForTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	target := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
 }
 
 func TestSimpleNestedSubArenas(t *testing.T) {
-	target := arena.New(arena.Options{InitialCapacity: 3 * requiredBytesForTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	target := arena.New(arena.Options{InitialCapacity: 3 * requiredBytesForBasicTest})
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := arena.SubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForTest})
+	other := arena.SubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForBasicTest})
 	otherStand := &basicArenaCheckingStand{}
 	otherStand.check(t, other)
 
@@ -54,22 +71,48 @@ func TestSimpleNestedSubArenas(t *testing.T) {
 	failOnError(t, allocErr)
 
 	_, allocErr = widerArena.Alloc(10, 1)
-	assert(allocErr != nil, "allocation limit of parent arena should be triggered")
+	assert(allocErr == arena.AllocationLimitError, "allocation limit of parent arena should be triggered")
+
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, a)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, other)
+	}
 }
 
 func TestSimpleConsecutiveSubArenas(t *testing.T) {
-	target := arena.New(arena.Options{InitialCapacity: requiredBytesForTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	target := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	other := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	otherStand := &basicArenaCheckingStand{}
 	otherStand.check(t, other)
+
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, a)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, other)
+	}
 }
 
 func TestSimpleSubArenaOnNilTarget(t *testing.T) {
-	a := arena.SubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	a := arena.SubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 }
@@ -101,6 +144,12 @@ func TestSimpleArena(t *testing.T) {
 		}()
 		a.ToRef(otherArenaPtr)
 	}()
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
 }
 
 func TestDynamicArena(t *testing.T) {
@@ -130,10 +179,16 @@ func TestDynamicArena(t *testing.T) {
 		}()
 		a.ToRef(otherArenaPtr)
 	}()
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
 }
 
 func TestRawArena(t *testing.T) {
-	a := arena.NewRawArena(requiredBytesForTest)
+	a := arena.NewRawArena(requiredBytesForBasicTest)
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 

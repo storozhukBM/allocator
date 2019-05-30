@@ -95,7 +95,7 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	targetPadding := calculateRequiredPadding(a.target.CurrentOffset(), targetAlignment)
 
 	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding > a.allocationLimitInBytes {
-		return Ptr{}, allocationLimit
+		return Ptr{}, AllocationLimitError
 	}
 
 	beforeCallMetrics := a.target.Metrics()
@@ -113,6 +113,15 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 
 	result.arenaMask = a.arenaMask
 	return result, nil
+}
+
+func (a *Simple) Clear() {
+	a.target = nil
+
+	a.arenaMask = (a.arenaMask + 1) | 1
+	a.paddingOverhead = 0
+	a.dataBytes = 0
+	a.usedBytes = 0
 }
 
 func (a *Simple) CurrentOffset() Offset {
@@ -158,6 +167,8 @@ func (a *Simple) init() {
 		a.target = &Dynamic{}
 	}
 	if a.arenaMask == 0 {
-		a.arenaMask = uint16(rand.Uint32()) | 1
+		// here we can give guarantees that sub-arena mask will differ from parent arena
+		modifier := uint16(rand.Uint32()) | 1
+		a.arenaMask = (a.target.CurrentOffset().p.arenaMask + modifier) | 1
 	}
 }
