@@ -19,13 +19,13 @@ func NewRawArena(size uint) *Raw {
 }
 
 func (a *Raw) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
+	targetAlignment := int(alignment)
+	paddingSize := calculateRequiredPadding(a.CurrentOffset(), targetAlignment)
 	targetSize := int(size)
-	if targetSize > a.availableSize {
+	if targetSize+paddingSize > a.availableSize {
 		return Ptr{}, AllocationLimitError
 	}
 
-	targetAlignment := int(alignment)
-	paddingSize := calculateRequiredPadding(a.CurrentOffset(), targetAlignment)
 	a.offset += paddingSize
 	a.availableSize -= paddingSize
 

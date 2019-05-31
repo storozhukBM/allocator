@@ -57,13 +57,13 @@ func TestSimpleSubArena(t *testing.T) {
 
 func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 	target := &arena.Dynamic{}
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForTest})
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForMaskTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 }
 
 func TestSimpleSubArenaOverRawArena(t *testing.T) {
-	target := arena.NewRawArena(requiredBytesForTest)
+	target := arena.NewRawArena(requiredBytesForMaskTest)
 	a := arena.SubAllocator(target, arena.Options{})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
@@ -207,12 +207,22 @@ func TestDynamicArena(t *testing.T) {
 }
 
 func TestRawArena(t *testing.T) {
-	a := arena.NewRawArena(requiredBytesForBasicTest)
+	a := arena.NewRawArena(requiredBytesForBasicTest + 8)
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	allocSize := uintptr(a.Metrics().AvailableBytes + 1)
-	ptr, allocErr := a.Alloc(allocSize, 1)
-	assert(allocErr != nil, "allocation limit should be triggered")
-	assert(ptr == arena.Ptr{}, "ptr should be empty")
+	{
+		allocSize := uintptr(a.Metrics().AvailableBytes + 1)
+		ptr, allocErr := a.Alloc(allocSize, 1)
+		assert(allocErr != nil, "allocation limit should be triggered")
+		assert(ptr == arena.Ptr{}, "ptr should be empty")
+	}
+	{
+		_, allocErr := a.Alloc(1, 1)
+		failOnError(t, allocErr)
+		allocSize := uintptr(a.Metrics().AvailableBytes)
+		ptr, allocErr := a.Alloc(allocSize, 8)
+		assert(allocErr != nil, "allocation limit should be triggered")
+		assert(ptr == arena.Ptr{}, "ptr should be empty")
+	}
 }
