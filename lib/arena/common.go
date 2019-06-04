@@ -11,6 +11,25 @@ func (e Error) Error() string {
 }
 
 const AllocationLimitError = Error("allocation limit")
+const AllocationInvalidArgumentError = Error("allocation argument is invalid")
+
+type Bytes struct {
+	data Ptr
+	len  uintptr
+	cap  uintptr
+}
+
+func (b Bytes) String() string {
+	return fmt.Sprintf("{data: %v len: %v cap: %v}", b.data, b.len, b.cap)
+}
+
+func (b Bytes) Len() int {
+	return int(b.len)
+}
+
+func (b Bytes) Cap() int {
+	return int(b.cap)
+}
 
 type Ptr struct {
 	offset    uint32

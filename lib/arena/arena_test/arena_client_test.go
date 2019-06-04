@@ -18,6 +18,9 @@ func TestSimpleArenaWithoutConstructor(t *testing.T) {
 
 	growthStand := &arenaDynamicGrowthStand{}
 	growthStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
 }
 
 func TestSimpleArenaWithInitialCapacity(t *testing.T) {
@@ -29,6 +32,8 @@ func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 	maskStand.check(t, a)
 	growthStand := &arenaDynamicGrowthStand{}
 	growthStand.check(t, a)
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
 }
 
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
@@ -40,6 +45,9 @@ func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 	ptr, allocErr := a.Alloc(allocSize, 1)
 	assert(allocErr == arena.AllocationLimitError, "allocation limit should be triggered")
 	assert(ptr == arena.Ptr{}, "ptr should be empty")
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
 
 	maskStand := &arenaMaskCheckingStand{}
 	maskStand.check(t, a)
@@ -53,6 +61,8 @@ func TestSimpleSubArena(t *testing.T) {
 
 	maskStand := &arenaMaskCheckingStand{}
 	maskStand.check(t, a)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
 }
 
 func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
@@ -60,10 +70,12 @@ func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForMaskTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
 }
 
 func TestSimpleSubArenaOverRawArena(t *testing.T) {
-	target := arena.NewRawArena(requiredBytesForMaskTest)
+	target := arena.NewRawArena(requiredBytesForMaskTest + 8)
 	a := arena.SubAllocator(target, arena.Options{})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
@@ -72,6 +84,9 @@ func TestSimpleSubArenaOverRawArena(t *testing.T) {
 	ptr, allocErr := a.Alloc(allocSize, 1)
 	assert(allocErr != nil, "allocation limit should be triggered")
 	assert(ptr == arena.Ptr{}, "ptr should be empty")
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
 }
 
 func TestSimpleNestedSubArenas(t *testing.T) {
@@ -99,10 +114,14 @@ func TestSimpleNestedSubArenas(t *testing.T) {
 	{
 		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, a)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, a)
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
 	}
 }
 
@@ -123,10 +142,14 @@ func TestSimpleConsecutiveSubArenas(t *testing.T) {
 	{
 		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, a)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, a)
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
 	}
 }
 
@@ -134,6 +157,15 @@ func TestSimpleSubArenaOnNilTarget(t *testing.T) {
 	a := arena.SubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
 }
 
 func TestSimpleArena(t *testing.T) {
@@ -169,6 +201,9 @@ func TestSimpleArena(t *testing.T) {
 
 	growthStand := &arenaDynamicGrowthStand{}
 	growthStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
 }
 
 func TestDynamicArena(t *testing.T) {
@@ -204,6 +239,9 @@ func TestDynamicArena(t *testing.T) {
 
 	growthStand := &arenaDynamicGrowthStand{}
 	growthStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
 }
 
 func TestRawArena(t *testing.T) {
@@ -225,4 +263,12 @@ func TestRawArena(t *testing.T) {
 		assert(allocErr != nil, "allocation limit should be triggered")
 		assert(ptr == arena.Ptr{}, "ptr should be empty")
 	}
+
+	other := arena.NewRawArena(requiredBytesForBytesAllocationTest)
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, other)
+
+	forLimits := arena.NewRawArena(requiredBytesForBytesAllocationTest)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, forLimits)
 }
