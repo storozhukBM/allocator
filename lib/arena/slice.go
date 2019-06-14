@@ -53,6 +53,32 @@ func Append(alloc bytesAllocator, bytesSlice Bytes, bytesToAppend ...byte) (Byte
 	return target, nil
 }
 
+func Embed(alloc bytesAllocator, src []byte) (Bytes, error) {
+	result, allocErr := MakeBytes(alloc, uintptr(len(src)))
+	if allocErr != nil {
+		return Bytes{}, allocErr
+	}
+	resultAsSlice := BytesToRef(alloc, result)
+	copy(resultAsSlice, src)
+	return result, nil
+}
+
+func EmbedAsBytes(alloc bytesAllocator, src []byte) ([]byte, error) {
+	bytes, allocErr := Embed(alloc, src)
+	if allocErr != nil {
+		return nil, allocErr
+	}
+	return BytesToRef(alloc, bytes), nil
+}
+
+func EmbedAsString(alloc bytesAllocator, src []byte) (string, error) {
+	bytes, allocErr := Embed(alloc, src)
+	if allocErr != nil {
+		return "", allocErr
+	}
+	return BytesToStringRef(alloc, bytes), nil
+}
+
 func BytesToRef(alloc bytesAllocator, bytes Bytes) []byte {
 	sliceHdr := bytesToSliceHeader(alloc, bytes)
 	return *(*[]byte)(unsafe.Pointer(&sliceHdr))

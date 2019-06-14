@@ -5,7 +5,6 @@ TODO:
 First Release scope
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
-1. arena string allocation option from passed []byte
 1. whole documentation with notion of unsafe semantics
 
 Second Release
@@ -38,6 +37,7 @@ Done:
     1. Full slice copy to general heap option
     1. String cast option
     1. Copy to heap with to string cast
+    1. Arena string allocation option from passed []byte
 
 
 Build

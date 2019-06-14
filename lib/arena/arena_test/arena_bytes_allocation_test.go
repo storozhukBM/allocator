@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const requiredBytesForBytesAllocationTest = 36
+const requiredBytesForBytesAllocationTest = 64
 
 type arenaByteAllocationCheckingStand struct {
 	commonStandState
@@ -74,9 +74,40 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 		assert(str == string(expectedBytes), "unexpected buffer state: %+v", str)
 		t.Logf("bytes as string state: %v", str)
 	}
-	expectedBytes := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	assert(bytes.Equal(fullOnHeapCopy, expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopy)
-	assert(fullOnHeapCopyAsString == string(expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopyAsString)
+	{
+		expectedBytes := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+		assert(bytes.Equal(fullOnHeapCopy, expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopy)
+		assert(fullOnHeapCopyAsString == string(expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopyAsString)
+	}
+
+	{
+		src := []byte("hello")
+		embeddedBytes, allocErr := arena.Embed(target, src)
+		failOnError(t, allocErr)
+
+		src[0] = 'g'
+
+		assert(
+			arena.BytesToStringRef(target, embeddedBytes) == "hello",
+			"unexpected buffer state: %+v", embeddedBytes,
+		)
+	}
+	{
+		src := []byte("hello")
+		embeddedBytes, allocErr := arena.EmbedAsBytes(target, src)
+		failOnError(t, allocErr)
+
+		src[0] = 'g'
+		assert(string(embeddedBytes) == "hello", "unexpected buffer state: %+v", embeddedBytes)
+	}
+	{
+		src := []byte("hello")
+		embeddedString, allocErr := arena.EmbedAsString(target, src)
+		failOnError(t, allocErr)
+
+		src[0] = 'g'
+		assert(embeddedString == "hello", "unexpected buffer state: %+v", embeddedString)
+	}
 }
 
 type arenaByteAllocationLimitsCheckingStand struct {
@@ -88,6 +119,24 @@ func (s *arenaByteAllocationLimitsCheckingStand) check(t *testing.T, target allo
 		arenaBytes, allocErr := arena.MakeBytes(target, uintptr(target.Metrics().AvailableBytes+1))
 		assert(allocErr != nil, "allocation limit should be triggered")
 		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
+	}
+	{
+		buf := make([]byte, target.Metrics().AvailableBytes+1)
+		arenaBytes, allocErr := arena.Embed(target, buf)
+		assert(allocErr != nil, "allocation limit should be triggered")
+		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
+	}
+	{
+		buf := make([]byte, target.Metrics().AvailableBytes+1)
+		arenaStr, allocErr := arena.EmbedAsString(target, buf)
+		assert(allocErr != nil, "allocation limit should be triggered")
+		assert(arenaStr == "", "arenaBytes should be empty")
+	}
+	{
+		buf := make([]byte, target.Metrics().AvailableBytes+1)
+		arenaBytes, allocErr := arena.EmbedAsBytes(target, buf)
+		assert(allocErr != nil, "allocation limit should be triggered")
+		assert(arenaBytes == nil, "arenaBytes should be empty")
 	}
 	{
 		arenaBytes, allocErr := arena.MakeBytesWithCapacity(target, 0, uintptr(target.Metrics().AvailableBytes+1))
