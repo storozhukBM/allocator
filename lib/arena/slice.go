@@ -54,11 +54,35 @@ func Append(alloc bytesAllocator, bytesSlice Bytes, bytesToAppend ...byte) (Byte
 }
 
 func BytesToRef(alloc bytesAllocator, bytes Bytes) []byte {
+	sliceHdr := bytesToSliceHeader(alloc, bytes)
+	return *(*[]byte)(unsafe.Pointer(&sliceHdr))
+}
+
+func BytesToStringRef(alloc bytesAllocator, bytes Bytes) string {
+	sliceHdr := bytesToSliceHeader(alloc, bytes)
+	return *(*string)(unsafe.Pointer(&sliceHdr))
+}
+
+func CopyBytesToHeap(alloc bytesAllocator, bytes Bytes) []byte {
+	sliceFromArena := BytesToRef(alloc, bytes)
+	copyOnHeap := make([]byte, bytes.len)
+	copy(copyOnHeap, sliceFromArena)
+	return copyOnHeap
+}
+
+func CopyBytesToStringOnHeap(alloc bytesAllocator, bytes Bytes) string {
+	sliceFromArena := BytesToRef(alloc, bytes)
+	copyOnHeap := make([]byte, bytes.len)
+	copy(copyOnHeap, sliceFromArena)
+	return *(*string)(unsafe.Pointer(&copyOnHeap))
+}
+
+func bytesToSliceHeader(alloc bytesAllocator, bytes Bytes) reflect.SliceHeader {
 	sliceBufferRef := alloc.ToRef(bytes.data)
 	sliceHdr := reflect.SliceHeader{
 		Data: uintptr(sliceBufferRef),
 		Len:  int(bytes.len),
 		Cap:  int(bytes.cap),
 	}
-	return *(*[]byte)(unsafe.Pointer(&sliceHdr))
+	return sliceHdr
 }

@@ -5,19 +5,15 @@ TODO:
 First Release scope
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
-1. byte slice allocation options
-    1. full slice copy to general heap option
-    1. string cast option
-    1. copy to heap with to string cast
 1. arena string allocation option from passed []byte
 1. whole documentation with notion of unsafe semantics
+
+Second Release
+1. instrumented arena
 1. create additional methods for allocation within 
 limits that can accept to sizes (minSize, preferableSize). 
 It can also try to fit allocation in currently available buffer
 1. think about optimization of append to consecutive byte slices
-
-Second Release
-1. instrumented arena
 1. close arena function
 1. arena leak detector
 1. to ref pointers leak detector
@@ -39,6 +35,9 @@ Done:
     1. Capacity management
     1. Append function
     1. Separate hiding header that can be resolved to []byte
+    1. Full slice copy to general heap option
+    1. String cast option
+    1. Copy to heap with to string cast
 
 
 Build
