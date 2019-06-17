@@ -34,7 +34,7 @@ func (a *Dynamic) Alloc(size, alignment uintptr) (Ptr, error) {
 	targetSize := int(size)
 	targetAlignment := max(int(alignment), 1)
 	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
-	if targetSize+padding > a.currentArena.availableSize {
+	if targetSize+padding > len(a.currentArena.buffer)-a.currentArena.offset {
 		a.grow(targetSize + padding)
 	}
 	result, allocErr := a.currentArena.Alloc(size, uintptr(targetAlignment))

@@ -6,39 +6,34 @@ import (
 )
 
 type Raw struct {
-	buffer        []byte
-	offset        int
-	availableSize int
+	buffer []byte
+	offset int
 }
 
 func NewRawArena(size uint) *Raw {
 	return &Raw{
-		buffer:        make([]byte, int(size)),
-		availableSize: int(size),
+		buffer: make([]byte, int(size)),
 	}
 }
 
 func (a *Raw) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
-	targetAlignment := int(alignment)
-	paddingSize := calculateRequiredPadding(a.CurrentOffset(), targetAlignment)
 	targetSize := int(size)
-	if targetSize+paddingSize > a.availableSize {
+	targetAlignment := int(alignment)
+
+	paddingSize := calculateRequiredPadding(a.CurrentOffset(), targetAlignment)
+	if targetSize+paddingSize > len(a.buffer)-a.offset {
 		return Ptr{}, AllocationLimitError
 	}
-
 	a.offset += paddingSize
-	a.availableSize -= paddingSize
 
 	allocationOffset := a.offset
 	a.offset += targetSize
-	a.availableSize -= targetSize
 	return Ptr{offset: uint32(allocationOffset)}, nil
 }
 
 func (a *Raw) Clear() {
 	clearBytes(a.buffer)
 	a.offset = 0
-	a.availableSize = len(a.buffer)
 }
 
 func (a *Raw) CurrentOffset() Offset {
@@ -57,7 +52,7 @@ func (a *Raw) String() string {
 func (a *Raw) Metrics() Metrics {
 	return Metrics{
 		UsedBytes:      a.offset,
-		AvailableBytes: a.availableSize,
+		AvailableBytes: len(a.buffer) - a.offset,
 		AllocatedBytes: len(a.buffer),
 		MaxCapacity:    len(a.buffer),
 	}
