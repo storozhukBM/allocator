@@ -6,7 +6,7 @@ import (
 	"unsafe"
 )
 
-const requiredBytesForBasicTest = 48
+const requiredBytesForBasicTest = 80
 
 type basicArenaCheckingStand struct {
 	commonStandState
@@ -90,9 +90,17 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		assert(target.Metrics().UsedBytes == 12, "expect used bytes should be 12. instead: %v", target.Metrics())
 	}
 	{
-		boss := &person{name: "Richard Bahman", age: 44}
 
-		personPtr, allocErr := target.Alloc(unsafe.Sizeof(person{}), unsafe.Alignof(person{}))
+		sizeOfPerson := unsafe.Sizeof(person{})
+		alignmentOfPerson := unsafe.Alignof(person{})
+
+		bossPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
+		failOnError(t, allocErr)
+		boss := (*person)(unsafe.Pointer(target.ToRef(bossPtr)))
+		boss.Name = "Richard Bahman"
+		boss.Age = 44
+
+		personPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
 		failOnError(t, allocErr)
 		s.checkPointerIsUnique(t, personPtr)
 		s.checkOffsetIsUnique(t, target.CurrentOffset())
@@ -104,17 +112,17 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		rawPtr := uintptr(ref)
 		{
 			p := (*person)(unsafe.Pointer(rawPtr))
-			p.name = "John Smith"
-			p.age = 21
-			p.manager = boss
+			p.Name = "John Smith"
+			p.Age = 21
+			p.Manager = boss
 		}
 		runtime.GC()
 		{
 			p := (*person)(unsafe.Pointer(rawPtr))
-			assert(p.name == "John Smith", "unexpected person state: %+v", p)
-			assert(p.age == 21, "unexpected person state: %+v", p)
-			assert(p.manager.name == "Richard Bahman", "unexpected person state: %+v", p)
-			assert(p.manager.age == 44, "unexpected person state: %+v", p)
+			assert(p.Name == "John Smith", "unexpected person state: %+v", p)
+			assert(p.Age == 21, "unexpected person state: %+v", p)
+			assert(p.Manager.Name == "Richard Bahman", "unexpected person state: %+v", p)
+			assert(p.Manager.Age == 44, "unexpected person state: %+v", p)
 		}
 	}
 	s.printStandState(t)

@@ -8,6 +8,7 @@ import (
 type bytesAllocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
 	ToRef(p Ptr) unsafe.Pointer
+	Metrics() Metrics
 }
 
 func MakeBytes(alloc bytesAllocator, len uintptr) (Bytes, error) {
@@ -35,21 +36,22 @@ func MakeBytesWithCapacity(alloc bytesAllocator, length uintptr, capacity uintpt
 }
 
 func Append(alloc bytesAllocator, bytesSlice Bytes, bytesToAppend ...byte) (Bytes, error) {
-	target := bytesSlice
-	availableSize := int(target.cap - target.len)
-
-	if availableSize < len(bytesToAppend) {
-		newSize := max(2*(int(target.cap)+len(bytesToAppend)), 2*int(target.cap))
-		newTarget, allocErr := MakeBytes(alloc, uintptr(newSize))
-		if allocErr != nil {
-			return Bytes{}, allocErr
-		}
-		copy(BytesToRef(alloc, newTarget), BytesToRef(alloc, target))
-		target = newTarget
+	target, allocErr := growIfNecessary(alloc, bytesSlice, len(bytesToAppend))
+	if allocErr != nil {
+		return Bytes{}, allocErr
 	}
-
 	target.len = bytesSlice.len + uintptr(len(bytesToAppend))
 	copy(BytesToRef(alloc, target)[bytesSlice.len:], bytesToAppend)
+	return target, nil
+}
+
+func AppendString(alloc bytesAllocator, bytesSlice Bytes, str string) (Bytes, error) {
+	target, allocErr := growIfNecessary(alloc, bytesSlice, len(str))
+	if allocErr != nil {
+		return Bytes{}, allocErr
+	}
+	target.len = bytesSlice.len + uintptr(len(str))
+	copy(BytesToRef(alloc, target)[bytesSlice.len:], str)
 	return target, nil
 }
 
@@ -101,6 +103,40 @@ func CopyBytesToStringOnHeap(alloc bytesAllocator, bytes Bytes) string {
 	copyOnHeap := make([]byte, bytes.len)
 	copy(copyOnHeap, sliceFromArena)
 	return *(*string)(unsafe.Pointer(&copyOnHeap))
+}
+
+func growIfNecessary(alloc bytesAllocator, bytesSlice Bytes, requiredSize int) (Bytes, error) {
+	target := bytesSlice
+	availableSize := int(target.cap - target.len)
+	if availableSize >= requiredSize {
+		return target, nil
+	}
+
+	nextPtr, probeAllocErr := alloc.Alloc(0, 1)
+	if probeAllocErr != nil {
+		return Bytes{}, probeAllocErr
+	}
+	// current allocation offset is the same as previous
+	// we can try to just enhance current buffer
+	nextAllocationIsRightAfterTargetSlice := nextPtr.offset == target.data.offset+uint32(target.cap)
+	if nextAllocationIsRightAfterTargetSlice && alloc.Metrics().AvailableBytes > requiredSize {
+		_, enhancingErr := alloc.Alloc(uintptr(requiredSize), 1)
+		if enhancingErr != nil {
+			return Bytes{}, enhancingErr
+		}
+		target.cap += uintptr(requiredSize)
+		return target, nil
+	}
+
+	newSize := max(2*(int(target.cap)+requiredSize), 2*int(target.cap))
+	newTarget, allocErr := MakeBytes(alloc, uintptr(newSize))
+	if allocErr != nil {
+		return Bytes{}, allocErr
+	}
+	copy(BytesToRef(alloc, newTarget), BytesToRef(alloc, target))
+	target = newTarget
+
+	return target, nil
 }
 
 func bytesToSliceHeader(alloc bytesAllocator, bytes Bytes) reflect.SliceHeader {

@@ -17,8 +17,9 @@ type Dynamic struct {
 	currentArena    Raw
 	currentArenaIdx int
 
-	allocatedBytes int
-	usedBytes      int
+	allocatedBytes    int
+	usedBytes         int
+	onHeapAllocations int
 
 	arenaMask uint16
 }
@@ -104,10 +105,11 @@ func (a *Dynamic) String() string {
 func (a *Dynamic) Metrics() Metrics {
 	currentArenaMetrics := a.currentArena.Metrics()
 	return Metrics{
-		UsedBytes:      a.usedBytes,
-		AvailableBytes: currentArenaMetrics.AvailableBytes,
-		AllocatedBytes: a.allocatedBytes,
-		MaxCapacity:    a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32,
+		UsedBytes:                a.usedBytes,
+		AvailableBytes:           currentArenaMetrics.AvailableBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		MaxCapacity:              a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
 	}
 }
 
@@ -126,6 +128,7 @@ func (a *Dynamic) getNewArena(size int) Raw {
 	if a.freeListOfClearArenas == nil {
 		newRawArena := NewRawArena(uint(size))
 		a.allocatedBytes += size
+		a.onHeapAllocations += 1
 		return *newRawArena
 	}
 
@@ -139,6 +142,7 @@ func (a *Dynamic) getNewArena(size int) Raw {
 	a.freeListOfClearArenas = nil
 	newRawArena := NewRawArena(uint(size))
 	a.allocatedBytes += size
+	a.onHeapAllocations += 1
 	return *newRawArena
 }
 

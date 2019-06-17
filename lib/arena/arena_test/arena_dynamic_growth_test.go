@@ -1,6 +1,7 @@
 package arena_test
 
 import (
+	"encoding/json"
 	"github.com/storozhukBM/allocator/lib/arena"
 	"math/rand"
 	"runtime"
@@ -16,36 +17,27 @@ type arenaDynamicGrowthStand struct {
 func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 	s.allocateDifferentObjects(t, target)
 
-	var personPtrTarget arena.Ptr
+	var personTarget arena.Bytes
 	{
-		boss := &person{name: "Richard Bahman", age: 44}
-
-		personPtr, allocErr := target.Alloc(unsafe.Sizeof(person{}), unsafe.Alignof(person{}))
-		failOnError(t, allocErr)
-		ref := target.ToRef(personPtr)
-		rawPtr := uintptr(ref)
-		{
-			p := (*person)(unsafe.Pointer(rawPtr))
-			p.name = "John Smith"
-			p.age = 21
-			p.manager = boss
-		}
-		personPtrTarget = personPtr
+		boss := &person{Name: "Richard Bahman", Age: 44}
+		p := &person{Name: "John Smith", Age: 21, Manager: boss}
+		arenaBuffer := arena.NewBuffer(target)
+		encodingErr := json.NewEncoder(arenaBuffer).Encode(p)
+		failOnError(t, encodingErr)
+		personTarget = arenaBuffer.ArenaBytes()
 	}
 
 	s.allocateDifferentObjects(t, target)
 	runtime.GC()
 
 	{
-		ref := target.ToRef(personPtrTarget)
-		rawPtr := uintptr(ref)
-		{
-			p := (*person)(unsafe.Pointer(rawPtr))
-			assert(p.name == "John Smith", "unexpected person state: %+v", p)
-			assert(p.age == 21, "unexpected person state: %+v", p)
-			assert(p.manager.name == "Richard Bahman", "unexpected person state: %+v", p)
-			assert(p.manager.age == 44, "unexpected person state: %+v", p)
-		}
+		var p person
+		unmarshalErr := json.Unmarshal(arena.BytesToRef(target, personTarget), &p)
+		failOnError(t, unmarshalErr)
+		assert(p.Name == "John Smith", "unexpected person state: %+v", p)
+		assert(p.Age == 21, "unexpected person state: %+v", p)
+		assert(p.Manager.Name == "Richard Bahman", "unexpected person state: %+v", p)
+		assert(p.Manager.Age == 44, "unexpected person state: %+v", p)
 	}
 	for i := 0; i < 3; i++ {
 		target.Clear()
@@ -54,7 +46,7 @@ func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 				wrongArenaToRefPanic := recover()
 				assert(wrongArenaToRefPanic != nil, "toRef on cleared arena should trigger panic")
 			}()
-			target.ToRef(personPtrTarget)
+			arena.BytesToRef(target, personTarget)
 		}()
 		afterClearAllocatedBytes := target.Metrics().AllocatedBytes
 		iterations := 0
@@ -83,8 +75,8 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 			ref := target.ToRef(personPtr)
 			rawPtr := uintptr(ref)
 			p := (*person)(unsafe.Pointer(rawPtr))
-			p.name = "John " + strconv.Itoa(rand.Int())
-			p.age = uint(rand.Uint32())
+			p.Name = "John " + strconv.Itoa(rand.Int())
+			p.Age = uint(rand.Uint32())
 			allocations = append(allocations, allocatedPerson{ptr: personPtr, person: *p})
 		}
 	}
@@ -94,8 +86,8 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 		assert(ref != nil, "ref should be resolvable")
 		rawPtr := uintptr(ref)
 		p := (*person)(unsafe.Pointer(rawPtr))
-		assert(p.name == alloc.person.name, "unexpected person state: %+v; %+v", p, alloc)
-		assert(p.age == alloc.person.age, "unexpected person state: %+v; %+v", p, alloc)
+		assert(p.Name == alloc.person.Name, "unexpected person state: %+v; %+v", p, alloc)
+		assert(p.Age == alloc.person.Age, "unexpected person state: %+v; %+v", p, alloc)
 	}
 	t.Logf("after allocation: %v", target.Metrics())
 }

@@ -51,9 +51,10 @@ func (a *Raw) String() string {
 
 func (a *Raw) Metrics() Metrics {
 	return Metrics{
-		UsedBytes:      a.offset,
-		AvailableBytes: len(a.buffer) - a.offset,
-		AllocatedBytes: len(a.buffer),
-		MaxCapacity:    len(a.buffer),
+		UsedBytes:                a.offset,
+		AvailableBytes:           len(a.buffer) - a.offset,
+		AllocatedBytes:           len(a.buffer),
+		MaxCapacity:              len(a.buffer),
+		CountOfOnHeapAllocations: 0,
 	}
 }

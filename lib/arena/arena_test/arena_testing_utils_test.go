@@ -91,14 +91,14 @@ func assert(condition bool, msg string, args ...interface{}) {
 func failOnError(t *testing.T, e error) {
 	if e != nil {
 		t.Error(e)
-		panic("unexpected error happened")
+		panic("unexpected error happened: " + e.Error())
 	}
 }
 
 type person struct {
-	name    string
-	age     uint
-	manager *person
+	Name    string
+	Age     uint
+	Manager *person
 }
 
 type stringsSetWithOrder struct {

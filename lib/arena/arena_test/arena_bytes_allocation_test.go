@@ -79,6 +79,19 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 		assert(bytes.Equal(fullOnHeapCopy, expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopy)
 		assert(fullOnHeapCopyAsString == string(expectedBytes), "unexpected buffer state: %+v", fullOnHeapCopyAsString)
 	}
+	{
+		arenaBytes, allocErr = arena.AppendString(target, arenaBytes, "abc")
+		failOnError(t, allocErr)
+	}
+	{
+		buf := arena.BytesToRef(target, arenaBytes)
+		expectedBytes := []byte{78, 2, 3, 4, 5, 6, 7, 65, 9, 'a', 'b', 'c'}
+		assert(bytes.Equal(buf, expectedBytes), "unexpected buffer state: %+v", buf)
+
+		str := arena.BytesToStringRef(target, arenaBytes)
+		assert(str == string(expectedBytes), "unexpected buffer state: %+v", str)
+		t.Logf("bytes as string state: %v", str)
+	}
 
 	{
 		src := []byte("hello")

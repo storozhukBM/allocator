@@ -22,8 +22,8 @@ type EnhancedMetrics struct {
 
 func (p EnhancedMetrics) String() string {
 	return fmt.Sprintf(
-		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
-		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfOnHeapAllocations %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfOnHeapAllocations, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
 	)
 }
 
@@ -49,6 +49,7 @@ type Simple struct {
 	dataBytes          int
 	usedBytes          int
 	allocatedBytes     int
+	onHeapAllocations  int
 }
 
 func New(opts Options) *Simple {
@@ -110,6 +111,7 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
 	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
+	a.onHeapAllocations += afterCallMetrics.CountOfOnHeapAllocations - beforeCallMetrics.CountOfOnHeapAllocations
 
 	result.arenaMask = a.arenaMask
 	return result, nil
@@ -138,8 +140,9 @@ func (a *Simple) String() string {
 
 func (a *Simple) Metrics() Metrics {
 	result := Metrics{
-		UsedBytes:      a.usedBytes,
-		AllocatedBytes: a.allocatedBytes,
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
 	}
 	if a.target != nil {
 		targetArenaMetrics := a.target.Metrics()
