@@ -5,18 +5,18 @@ import (
 	"unsafe"
 )
 
-type Raw struct {
+type RawAllocator struct {
 	buffer []byte
 	offset int
 }
 
-func NewRawArena(size uint) *Raw {
-	return &Raw{
+func NewRawAllocator(size uint) *RawAllocator {
+	return &RawAllocator{
 		buffer: make([]byte, int(size)),
 	}
 }
 
-func (a *Raw) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
+func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 	targetSize := int(size)
 	targetAlignment := int(alignment)
 
@@ -31,29 +31,30 @@ func (a *Raw) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 	return Ptr{offset: uint32(allocationOffset)}, nil
 }
 
-func (a *Raw) Clear() {
+func (a *RawAllocator) Clear() {
 	clearBytes(a.buffer)
 	a.offset = 0
 }
 
-func (a *Raw) CurrentOffset() Offset {
+func (a *RawAllocator) CurrentOffset() Offset {
 	return Offset{p: Ptr{offset: uint32(a.offset)}}
 }
 
-func (a *Raw) ToRef(p Ptr) unsafe.Pointer {
+func (a *RawAllocator) ToRef(p Ptr) unsafe.Pointer {
 	targetOffset := int(p.offset) % len(a.buffer)
 	return unsafe.Pointer(&a.buffer[targetOffset])
 }
 
-func (a *Raw) String() string {
+func (a *RawAllocator) String() string {
 	return fmt.Sprintf("rowarena{%v}", a.CurrentOffset())
 }
 
-func (a *Raw) Metrics() Metrics {
+func (a *RawAllocator) Metrics() Metrics {
 	return Metrics{
-		UsedBytes:      a.offset,
-		AvailableBytes: len(a.buffer) - a.offset,
-		AllocatedBytes: len(a.buffer),
-		MaxCapacity:    len(a.buffer),
+		UsedBytes:                a.offset,
+		AvailableBytes:           len(a.buffer) - a.offset,
+		AllocatedBytes:           len(a.buffer),
+		MaxCapacity:              len(a.buffer),
+		CountOfOnHeapAllocations: 0,
 	}
 }

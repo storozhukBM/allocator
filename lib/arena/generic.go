@@ -22,15 +22,9 @@ type EnhancedMetrics struct {
 
 func (p EnhancedMetrics) String() string {
 	return fmt.Sprintf(
-		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
-		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfOnHeapAllocations %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfOnHeapAllocations, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
 	)
-}
-
-type AllocResult struct {
-	Size             uintptr
-	Alignment        uintptr
-	ResultingMetrics EnhancedMetrics
 }
 
 type Options struct {
@@ -38,7 +32,7 @@ type Options struct {
 	AllocationLimitInBytes uint
 }
 
-type Simple struct {
+type GenericAllocator struct {
 	target    allocator
 	arenaMask uint16
 
@@ -49,10 +43,11 @@ type Simple struct {
 	dataBytes          int
 	usedBytes          int
 	allocatedBytes     int
+	onHeapAllocations  int
 }
 
-func New(opts Options) *Simple {
-	result := &Simple{}
+func NewGenericAllocator(opts Options) *GenericAllocator {
+	result := &GenericAllocator{}
 	if opts.InitialCapacity > 0 {
 		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
 		result.allocatedBytes += result.target.Metrics().AllocatedBytes
@@ -64,11 +59,11 @@ func New(opts Options) *Simple {
 	return result
 }
 
-func SubAllocator(target allocator, opts Options) *Simple {
+func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 	if target == nil {
-		target = New(opts)
+		target = NewGenericAllocator(opts)
 	}
-	result := &Simple{target: target}
+	result := &GenericAllocator{target: target}
 	if opts.AllocationLimitInBytes > 0 {
 		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
 	}
@@ -76,7 +71,7 @@ func SubAllocator(target allocator, opts Options) *Simple {
 	return result
 }
 
-func (a *Simple) ToRef(p Ptr) unsafe.Pointer {
+func (a *GenericAllocator) ToRef(p Ptr) unsafe.Pointer {
 	if p.arenaMask != a.arenaMask {
 		panic("pointer isn't part of this arena")
 	}
@@ -88,7 +83,7 @@ func (a *Simple) ToRef(p Ptr) unsafe.Pointer {
 	return a.target.ToRef(p)
 }
 
-func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
+func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
 	targetAlignment := max(int(alignment), 1)
 	targetSize := int(size)
@@ -110,12 +105,13 @@ func (a *Simple) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
 	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
+	a.onHeapAllocations += afterCallMetrics.CountOfOnHeapAllocations - beforeCallMetrics.CountOfOnHeapAllocations
 
 	result.arenaMask = a.arenaMask
 	return result, nil
 }
 
-func (a *Simple) Clear() {
+func (a *GenericAllocator) Clear() {
 	a.target = nil
 
 	a.arenaMask = (a.arenaMask + 1) | 1
@@ -124,22 +120,23 @@ func (a *Simple) Clear() {
 	a.usedBytes = 0
 }
 
-func (a *Simple) CurrentOffset() Offset {
+func (a *GenericAllocator) CurrentOffset() Offset {
 	a.init()
 	result := a.target.CurrentOffset()
 	result.p.arenaMask = a.arenaMask
 	return result
 }
 
-func (a *Simple) String() string {
+func (a *GenericAllocator) String() string {
 	a.init()
 	return fmt.Sprintf("arena{mask: %v target: %v}", a.arenaMask, a.target)
 }
 
-func (a *Simple) Metrics() Metrics {
+func (a *GenericAllocator) Metrics() Metrics {
 	result := Metrics{
-		UsedBytes:      a.usedBytes,
-		AllocatedBytes: a.allocatedBytes,
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
 	}
 	if a.target != nil {
 		targetArenaMetrics := a.target.Metrics()
@@ -153,7 +150,7 @@ func (a *Simple) Metrics() Metrics {
 	return result
 }
 
-func (a *Simple) EnhancedMetrics() EnhancedMetrics {
+func (a *GenericAllocator) EnhancedMetrics() EnhancedMetrics {
 	return EnhancedMetrics{
 		Metrics:            a.Metrics(),
 		CountOfAllocations: a.countOfAllocations,
@@ -162,9 +159,9 @@ func (a *Simple) EnhancedMetrics() EnhancedMetrics {
 	}
 }
 
-func (a *Simple) init() {
+func (a *GenericAllocator) init() {
 	if a.target == nil {
-		a.target = &Dynamic{}
+		a.target = &DynamicAllocator{}
 	}
 	if a.arenaMask == 0 {
 		// here we can give guarantees that sub-arena mask will differ from parent arena

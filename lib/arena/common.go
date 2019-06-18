@@ -51,16 +51,17 @@ func (o Offset) String() string {
 }
 
 type Metrics struct {
-	UsedBytes      int
-	AvailableBytes int
-	AllocatedBytes int
-	MaxCapacity    int
+	UsedBytes                int
+	AvailableBytes           int
+	AllocatedBytes           int
+	MaxCapacity              int
+	CountOfOnHeapAllocations int
 }
 
 func (p Metrics) String() string {
 	return fmt.Sprintf(
-		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v}",
-		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity,
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfOnHeapAllocations %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfOnHeapAllocations,
 	)
 }
 
