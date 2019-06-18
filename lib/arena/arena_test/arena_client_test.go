@@ -72,7 +72,7 @@ func TestSimpleSubArena(t *testing.T) {
 func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 	t.Parallel()
 	target := &arena.Dynamic{}
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForMaskTest})
+	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
@@ -81,7 +81,7 @@ func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 
 func TestSimpleSubArenaOverRawArena(t *testing.T) {
 	t.Parallel()
-	target := arena.NewRawArena(requiredBytesForMaskTest + 8)
+	target := arena.NewRawArena(requiredBytesForBasicTest + 8)
 	a := arena.SubAllocator(target, arena.Options{})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)

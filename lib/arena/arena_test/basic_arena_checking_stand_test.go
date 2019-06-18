@@ -1,12 +1,13 @@
 package arena_test
 
 import (
+	"github.com/storozhukBM/allocator/lib/arena"
 	"runtime"
 	"testing"
 	"unsafe"
 )
 
-const requiredBytesForBasicTest = 80
+const requiredBytesForBasicTest = 128
 
 type basicArenaCheckingStand struct {
 	commonStandState
@@ -80,14 +81,17 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		s.checkMetricsAreUnique(t, target.Metrics())
 		s.checkEnhancedMetricsAreUnique(t, target)
 		s.checkArenaStrIsUnique(t, target)
+		//if target.Metrics().UsedBytes != 12 {
+		//	panic(nil)
+		//}
 		// here we expect 12 as:
-		// current_alloc_size | padding | result_size |
-		//                 +0 |      +0 |           0 |
-		//                 +1 |      +0 |           1 |
-		//                 +3 |      +0 |           4 |
-		//                 +1 |      +0 |           5 |
-		//                 +4 |      +3 |          12 |
-		assert(target.Metrics().UsedBytes == 12, "expect used bytes should be 12. instead: %v", target.Metrics())
+		// current_alloc_size |    padding      | result_size |
+		//                 +0 |      +0         |           0 |
+		//                 +1 |      +0         |           1 |
+		//                 +3 |      +0         |           4 |
+		//                 +1 |      +0         |           5 |
+		//                 +4 |      +(0|1|2|3) |          12 |
+		assert(target.Metrics().UsedBytes <= 12, "expect used bytes should be less than 12. instead: %v", target.Metrics())
 	}
 	{
 
@@ -97,7 +101,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		bossPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
 		failOnError(t, allocErr)
 		boss := (*person)(unsafe.Pointer(target.ToRef(bossPtr)))
-		boss.Name = "Richard Bahman"
+		boss.Name, allocErr = arena.EmbedAsString(target, []byte("Richard Bahman"))
 		boss.Age = 44
 
 		personPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
@@ -112,7 +116,8 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		rawPtr := uintptr(ref)
 		{
 			p := (*person)(unsafe.Pointer(rawPtr))
-			p.Name = "John Smith"
+			p.Name, allocErr = arena.EmbedAsString(target, []byte("John Smith"))
+			failOnError(t, allocErr)
 			p.Age = 21
 			p.Manager = boss
 		}

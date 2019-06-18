@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-const requiredBytesForMaskTest = 80
-
 type arenaMaskCheckingStand struct {
 	commonStandState
 }
