@@ -14,6 +14,7 @@ type arenaDynamicGrowthStand struct{}
 
 func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 	s.allocateDifferentObjects(t, target)
+	alloc := arena.NewBytesView(target)
 
 	var personTarget arena.Bytes
 	{
@@ -30,7 +31,7 @@ func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 
 	{
 		var p person
-		unmarshalErr := json.Unmarshal(arena.BytesToRef(target, personTarget), &p)
+		unmarshalErr := json.Unmarshal(alloc.BytesToRef(personTarget), &p)
 		failOnError(t, unmarshalErr)
 		assert(p.Name == "John Smith", "unexpected person state: %+v", p)
 		assert(p.Age == 21, "unexpected person state: %+v", p)
@@ -44,7 +45,7 @@ func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 				wrongArenaToRefPanic := recover()
 				assert(wrongArenaToRefPanic != nil, "toRef on cleared arena should trigger panic")
 			}()
-			arena.BytesToRef(target, personTarget)
+			alloc.BytesToRef(personTarget)
 		}()
 		afterClearAllocatedBytes := target.Metrics().AllocatedBytes
 		iterations := 0

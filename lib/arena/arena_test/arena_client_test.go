@@ -14,11 +14,11 @@ func TestUninitializedBytesBuffer(t *testing.T) {
 
 func TestSimpleArenaWithoutConstructor(t *testing.T) {
 	t.Parallel()
-	a := &arena.Simple{}
+	a := &arena.GenericAllocator{}
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := &arena.Simple{}
+	other := &arena.GenericAllocator{}
 	assert(other.ToRef(arena.Ptr{}) == nil, "should resolve to nil")
 
 	maskStand := &arenaMaskCheckingStand{}
@@ -33,7 +33,7 @@ func TestSimpleArenaWithoutConstructor(t *testing.T) {
 
 func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 	t.Parallel()
-	a := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -49,7 +49,7 @@ func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 	t.Parallel()
-	a := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest, AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	a := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest, AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -70,8 +70,8 @@ func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 
 func TestSimpleSubArena(t *testing.T) {
 	t.Parallel()
-	target := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	target := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -85,8 +85,8 @@ func TestSimpleSubArena(t *testing.T) {
 
 func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 	t.Parallel()
-	target := &arena.Dynamic{}
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	target := &arena.DynamicAllocator{}
+	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
@@ -97,8 +97,8 @@ func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 
 func TestSimpleSubArenaOverRawArena(t *testing.T) {
 	t.Parallel()
-	target := arena.NewRawArena(requiredBytesForBasicTest + 8)
-	a := arena.SubAllocator(target, arena.Options{})
+	target := arena.NewRawAllocator(requiredBytesForBasicTest + 8)
+	a := arena.NewSubAllocator(target, arena.Options{})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -115,17 +115,17 @@ func TestSimpleSubArenaOverRawArena(t *testing.T) {
 
 func TestSimpleNestedSubArenas(t *testing.T) {
 	t.Parallel()
-	target := arena.New(arena.Options{InitialCapacity: 3 * requiredBytesForBasicTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	target := arena.NewGenericAllocator(arena.Options{InitialCapacity: 3 * requiredBytesForBasicTest})
+	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := arena.SubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForBasicTest})
+	other := arena.NewSubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForBasicTest})
 	otherStand := &basicArenaCheckingStand{}
 	otherStand.check(t, other)
 
-	restrictedArena := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 10})
-	widerArena := arena.SubAllocator(restrictedArena, arena.Options{})
+	restrictedArena := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 10})
+	widerArena := arena.NewSubAllocator(restrictedArena, arena.Options{})
 	_, allocErr := widerArena.Alloc(1, 1)
 	failOnError(t, allocErr)
 
@@ -156,12 +156,12 @@ func TestSimpleNestedSubArenas(t *testing.T) {
 
 func TestSimpleConsecutiveSubArenas(t *testing.T) {
 	t.Parallel()
-	target := arena.New(arena.Options{InitialCapacity: requiredBytesForBasicTest})
-	a := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	target := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := arena.SubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	other := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	otherStand := &basicArenaCheckingStand{}
 	otherStand.check(t, other)
 
@@ -189,7 +189,7 @@ func TestSimpleConsecutiveSubArenas(t *testing.T) {
 
 func TestSimpleSubArenaOnNilTarget(t *testing.T) {
 	t.Parallel()
-	a := arena.SubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	a := arena.NewSubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -207,7 +207,7 @@ func TestSimpleSubArenaOnNilTarget(t *testing.T) {
 
 func TestSimpleArena(t *testing.T) {
 	t.Parallel()
-	a := arena.New(arena.Options{})
+	a := arena.NewGenericAllocator(arena.Options{})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -222,7 +222,7 @@ func TestSimpleArena(t *testing.T) {
 	assert(a.ToRef(secondPtr) != nil, "secondPtr is not nil")
 	assert(a.ToRef(firstPtr) != nil, "firstPtr is still not nil")
 
-	other := arena.New(arena.Options{})
+	other := arena.NewGenericAllocator(arena.Options{})
 	otherArenaPtr, allocErr := other.Alloc(1, 1)
 	assert(allocErr == nil, "err should be nil")
 
@@ -249,7 +249,7 @@ func TestSimpleArena(t *testing.T) {
 
 func TestDynamicArena(t *testing.T) {
 	t.Parallel()
-	a := &arena.Dynamic{}
+	a := &arena.DynamicAllocator{}
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -264,7 +264,7 @@ func TestDynamicArena(t *testing.T) {
 	assert(a.ToRef(secondPtr) != nil, "secondPtr is not nil")
 	assert(a.ToRef(firstPtr) != nil, "firstPtr is still not nil")
 
-	other := &arena.Dynamic{}
+	other := &arena.DynamicAllocator{}
 	otherArenaPtr, allocErr := other.Alloc(1, 1)
 	assert(allocErr == nil, "err should be nil")
 
@@ -291,7 +291,7 @@ func TestDynamicArena(t *testing.T) {
 
 func TestRawArena(t *testing.T) {
 	t.Parallel()
-	a := arena.NewRawArena(requiredBytesForBasicTest + 8)
+	a := arena.NewRawAllocator(requiredBytesForBasicTest + 8)
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -310,11 +310,11 @@ func TestRawArena(t *testing.T) {
 		assert(ptr == arena.Ptr{}, "ptr should be empty")
 	}
 
-	other := arena.NewRawArena(requiredBytesForBytesAllocationTest)
+	other := arena.NewRawAllocator(requiredBytesForBytesAllocationTest)
 	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
 	bytesAllocationStand.check(t, other)
 
-	forLimits := arena.NewRawArena(requiredBytesForBytesAllocationTest)
+	forLimits := arena.NewRawAllocator(requiredBytesForBytesAllocationTest)
 	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
 	bytesAllocationLimitsStand.check(t, forLimits)
 	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}

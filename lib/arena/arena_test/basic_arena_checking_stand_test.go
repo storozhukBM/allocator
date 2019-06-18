@@ -91,6 +91,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		assert(target.Metrics().UsedBytes <= 12, "expect used bytes should be less than 12. instead: %v", target.Metrics())
 	}
 	{
+		alloc := arena.NewBytesView(target)
 
 		sizeOfPerson := unsafe.Sizeof(person{})
 		alignmentOfPerson := unsafe.Alignof(person{})
@@ -98,7 +99,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		bossPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
 		failOnError(t, allocErr)
 		boss := (*person)(unsafe.Pointer(target.ToRef(bossPtr)))
-		boss.Name, allocErr = arena.EmbedAsString(target, []byte("Richard Bahman"))
+		boss.Name, allocErr = alloc.EmbedAsString([]byte("Richard Bahman"))
 		boss.Age = 44
 
 		personPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
@@ -113,7 +114,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		rawPtr := uintptr(ref)
 		{
 			p := (*person)(unsafe.Pointer(rawPtr))
-			p.Name, allocErr = arena.EmbedAsString(target, []byte("John Smith"))
+			p.Name, allocErr = alloc.EmbedAsString([]byte("John Smith"))
 			failOnError(t, allocErr)
 			p.Age = 21
 			p.Manager = boss

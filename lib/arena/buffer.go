@@ -1,30 +1,20 @@
 package arena
 
-import (
-	"unsafe"
-)
-
-type bufferAllocator interface {
-	Alloc(size uintptr, alignment uintptr) (Ptr, error)
-	ToRef(p Ptr) unsafe.Pointer
-	Metrics() Metrics
-}
-
 type Buffer struct {
-	alloc         bufferAllocator
+	alloc         *BytesView
 	currentBuffer Bytes
 }
 
 func NewBuffer(target bufferAllocator) *Buffer {
-	return &Buffer{alloc: target}
+	return &Buffer{alloc: NewBytesView(target)}
 }
 
 func (b *Buffer) init(initSize int) error {
 	if b.alloc == nil {
-		b.alloc = &Simple{}
+		b.alloc = NewBytesView(&GenericAllocator{})
 	}
 	if b.currentBuffer.Cap() == 0 {
-		newBuffer, allocErr := MakeBytesWithCapacity(b.alloc, 0, uintptr(initSize))
+		newBuffer, allocErr := b.alloc.MakeBytesWithCapacity(0, initSize)
 		if allocErr != nil {
 			return allocErr
 		}
@@ -38,7 +28,7 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 	if initErr != nil {
 		return 0, initErr
 	}
-	changedBuffer, allocErr := AppendString(b.alloc, b.currentBuffer, s)
+	changedBuffer, allocErr := b.alloc.AppendString(b.currentBuffer, s)
 	if allocErr != nil {
 		return 0, allocErr
 	}
@@ -51,7 +41,7 @@ func (b *Buffer) WriteByte(c byte) error {
 	if initErr != nil {
 		return initErr
 	}
-	changedBuffer, allocErr := AppendByte(b.alloc, b.currentBuffer, c)
+	changedBuffer, allocErr := b.alloc.AppendByte(b.currentBuffer, c)
 	if allocErr != nil {
 		return allocErr
 	}
@@ -64,7 +54,7 @@ func (b *Buffer) Write(p []byte) (n int, err error) {
 	if initErr != nil {
 		return 0, initErr
 	}
-	changedBuffer, allocErr := Append(b.alloc, b.currentBuffer, p...)
+	changedBuffer, allocErr := b.alloc.Append(b.currentBuffer, p...)
 	if allocErr != nil {
 		return 0, allocErr
 	}
@@ -76,28 +66,28 @@ func (b *Buffer) Bytes() []byte {
 	if b.alloc == nil || b.currentBuffer.Len() == 0 {
 		return nil
 	}
-	return BytesToRef(b.alloc, b.currentBuffer)
+	return b.alloc.BytesToRef(b.currentBuffer)
 }
 
 func (b *Buffer) String() string {
 	if b.alloc == nil || b.currentBuffer.Len() == 0 {
 		return ""
 	}
-	return BytesToStringRef(b.alloc, b.currentBuffer)
+	return b.alloc.BytesToStringRef(b.currentBuffer)
 }
 
 func (b *Buffer) CopyBytesToStringOnHeap() string {
 	if b.alloc == nil || b.currentBuffer.Len() == 0 {
 		return ""
 	}
-	return CopyBytesToStringOnHeap(b.alloc, b.currentBuffer)
+	return b.alloc.CopyBytesToStringOnHeap(b.currentBuffer)
 }
 
 func (b *Buffer) CopyBytesToHeap() []byte {
 	if b.alloc == nil || b.currentBuffer.Len() == 0 {
 		return nil
 	}
-	return CopyBytesToHeap(b.alloc, b.currentBuffer)
+	return b.alloc.CopyBytesToHeap(b.currentBuffer)
 }
 
 func (b *Buffer) ArenaBytes() Bytes {

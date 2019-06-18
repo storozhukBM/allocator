@@ -10,8 +10,8 @@ type arenaMaskCheckingStand struct {
 }
 
 func (s *arenaMaskCheckingStand) check(t *testing.T, target allocator) {
-	separateArena := arena.New(arena.Options{})
-	subArena := arena.SubAllocator(target, arena.Options{})
+	separateArena := arena.NewGenericAllocator(arena.Options{})
+	subArena := arena.NewSubAllocator(target, arena.Options{})
 
 	ptr, allocErr := target.Alloc(0, 1)
 	failOnError(t, allocErr)

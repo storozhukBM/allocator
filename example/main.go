@@ -9,7 +9,7 @@ import (
 
 func main() {
 	{
-		ar := arena.New(arena.Options{})
+		ar := arena.NewGenericAllocator(arena.Options{})
 
 		tPtr, allocErr := AllocTimePtr(ar, time.Now())
 		if allocErr != nil {
@@ -26,7 +26,7 @@ func main() {
 
 	timeType := reflect.TypeOf(time.Time{})
 	{
-		ar := &arena.Dynamic{}
+		ar := &arena.DynamicAllocator{}
 		aPtr, allocErr := ar.Alloc(timeType.Size(), uintptr(timeType.Align()))
 		if allocErr != nil {
 			panic(allocErr.Error())
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	{
-		ar := arena.NewRawArena(1024)
+		ar := arena.NewRawAllocator(1024)
 		timeSize := timeType.Size()
 		aPtr, allocErr := ar.Alloc(timeSize, uintptr(timeType.Align()))
 		if allocErr != nil {
@@ -69,7 +69,7 @@ func main() {
 
 type TimePtr arena.Ptr
 
-func AllocTimePtr(arena *arena.Simple, target time.Time) (TimePtr, error) {
+func AllocTimePtr(arena *arena.GenericAllocator, target time.Time) (TimePtr, error) {
 	targetType := reflect.TypeOf(time.Time{})
 	aPtr, allocErr := arena.Alloc(targetType.Size(), uintptr(targetType.Align()))
 	if allocErr != nil {
@@ -80,11 +80,11 @@ func AllocTimePtr(arena *arena.Simple, target time.Time) (TimePtr, error) {
 	return TimePtr(aPtr), nil
 }
 
-func (t TimePtr) DeRef(a *arena.Simple) time.Time {
+func (t TimePtr) DeRef(a *arena.GenericAllocator) time.Time {
 	return *(*time.Time)(a.ToRef(arena.Ptr(t)))
 }
 
-func (t TimePtr) Set(a *arena.Simple, target time.Time) {
+func (t TimePtr) Set(a *arena.GenericAllocator, target time.Time) {
 	tmpPtr := (*time.Time)(a.ToRef(arena.Ptr(t)))
 	*tmpPtr = target
 }
