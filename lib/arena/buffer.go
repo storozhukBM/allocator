@@ -1,6 +1,8 @@
 package arena
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type bufferAllocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
@@ -42,6 +44,19 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 	}
 	b.currentBuffer = changedBuffer
 	return len(s), nil
+}
+
+func (b *Buffer) WriteByte(c byte) error {
+	initErr := b.init(1)
+	if initErr != nil {
+		return initErr
+	}
+	changedBuffer, allocErr := AppendByte(b.alloc, b.currentBuffer, c)
+	if allocErr != nil {
+		return allocErr
+	}
+	b.currentBuffer = changedBuffer
+	return nil
 }
 
 func (b *Buffer) Write(p []byte) (n int, err error) {

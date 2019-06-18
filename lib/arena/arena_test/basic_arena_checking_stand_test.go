@@ -81,9 +81,6 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		s.checkMetricsAreUnique(t, target.Metrics())
 		s.checkEnhancedMetricsAreUnique(t, target)
 		s.checkArenaStrIsUnique(t, target)
-		//if target.Metrics().UsedBytes != 12 {
-		//	panic(nil)
-		//}
 		// here we expect 12 as:
 		// current_alloc_size |    padding      | result_size |
 		//                 +0 |      +0         |           0 |

@@ -55,6 +55,16 @@ func AppendString(alloc bytesAllocator, bytesSlice Bytes, str string) (Bytes, er
 	return target, nil
 }
 
+func AppendByte(alloc bytesAllocator, bytesSlice Bytes, byteToAppend byte) (Bytes, error) {
+	target, allocErr := growIfNecessary(alloc, bytesSlice, 1)
+	if allocErr != nil {
+		return Bytes{}, allocErr
+	}
+	target.len = bytesSlice.len + 1
+	BytesToRef(alloc, target)[bytesSlice.len] = byteToAppend
+	return target, nil
+}
+
 func Embed(alloc bytesAllocator, src []byte) (Bytes, error) {
 	result, allocErr := MakeBytes(alloc, uintptr(len(src)))
 	if allocErr != nil {

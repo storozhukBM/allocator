@@ -8,9 +8,7 @@ import (
 
 const requiredBytesForBytesAllocationTest = 64
 
-type arenaByteAllocationCheckingStand struct {
-	commonStandState
-}
+type arenaByteAllocationCheckingStand struct{}
 
 func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator) {
 	arenaBytes, allocErr := arena.MakeBytesWithCapacity(target, 0, 8)
@@ -123,9 +121,7 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 	}
 }
 
-type arenaByteAllocationLimitsCheckingStand struct {
-	commonStandState
-}
+type arenaByteAllocationLimitsCheckingStand struct{}
 
 func (s *arenaByteAllocationLimitsCheckingStand) check(t *testing.T, target allocator) {
 	{

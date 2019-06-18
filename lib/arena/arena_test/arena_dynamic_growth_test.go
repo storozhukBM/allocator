@@ -10,9 +10,7 @@ import (
 	"unsafe"
 )
 
-type arenaDynamicGrowthStand struct {
-	commonStandState
-}
+type arenaDynamicGrowthStand struct{}
 
 func (s *arenaDynamicGrowthStand) check(t *testing.T, target allocator) {
 	s.allocateDifferentObjects(t, target)
