@@ -9,10 +9,7 @@ First Release scope
 
 Second Release
 1. instrumented arena
-1. create additional methods for allocation within 
-limits that can accept to sizes (minSize, preferableSize). 
-It can also try to fit allocation in currently available buffer
-1. think about optimization of append to consecutive byte slices
+1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize).
 1. close arena function
 1. arena leak detector
 1. to ref pointers leak detector
@@ -38,34 +35,10 @@ Done:
     1. String cast option
     1. Copy to heap with to string cast
     1. Arena string allocation option from passed []byte
+    1. Optimization of append to consecutive byte slices where we try to fit allocation in currently available buffer
 
-
-Build
-```
-go build ./...
-```
-
-Build with info
-```
-go build -gcflags -m ./...
-```
 
 Test
 ```
-go test ./...
-```
-
-Test with debug output
-```
-go test -v ./...
-```
-
-Test with race detector
-```
-go test -count 100 -v -race ./...
-```
-
-Coverage
-```
-go test -coverpkg=./... -coverprofile=coverage.out ./lib/arena/... && go tool cover -html=coverage.out
+make test
 ```

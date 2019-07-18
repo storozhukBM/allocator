@@ -140,7 +140,7 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 	// current allocation offset is the same as previous
 	// we can try to just enhance current buffer
 	nextAllocationIsRightAfterTargetSlice := nextPtr.offset == target.data.offset+uint32(target.cap)
-	if nextAllocationIsRightAfterTargetSlice && s.alloc.Metrics().AvailableBytes > requiredSize {
+	if nextAllocationIsRightAfterTargetSlice && s.alloc.Metrics().AvailableBytes >= requiredSize {
 		_, enhancingErr := s.alloc.Alloc(uintptr(requiredSize), 1)
 		if enhancingErr != nil {
 			return Bytes{}, enhancingErr
