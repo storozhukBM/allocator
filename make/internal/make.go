@@ -9,30 +9,24 @@ const CoverageName = `coverage.out`
 var b = NewBuild(BuildOptions{})
 
 func main() {
-	b.Cmd(`build`, func() {
-		b.Run(Go, `build`, `./...`)
-	})
+	commands := []Command{
+		{`build`, b.RunCmd(Go, `build`, `./...`)},
+		{
+			`buildInlineBounds`,
+			b.RunCmd(Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`),
+		},
 
-	b.Cmd(`buildInlineBounds`, func() {
-		b.Run(Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`)
-	})
+		{`test`, b.RunCmd(Go, `test`, `./...`)},
+		{`testDebug`, b.RunCmd(Go, `test`, `-v`, `./...`)},
 
-	b.Cmd(`test`, func() {
-		b.Run(Go, `test`, `./...`)
-	})
-
-	b.Cmd(`testDebug`, func() {
-		b.Run(Go, `test`, `-v`, `./...`)
-	})
-
-	b.Cmd(`coverage`, func() {
-		clean()
-		b.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./lib/arena/...`)
-		b.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
-	})
-
-	b.Cmd(`clean`, clean)
-
+		{`coverage`, func() {
+			clean()
+			b.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./lib/arena/...`)
+			b.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
+		}},
+		{`clean`, clean},
+	}
+	b.Register(commands)
 	b.Build(os.Args[1:])
 }
 

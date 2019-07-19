@@ -10,6 +10,11 @@ import (
 
 const Go = "go"
 
+type Command struct {
+	SubCommand string
+	Body       func()
+}
+
 type BuildOptions struct {
 	Env    map[string]string
 	Stdout io.Writer
@@ -74,6 +79,18 @@ func (b *Build) Run(cmd string, args ...string) {
 func (b *Build) ForceRun(cmd string, args ...string) {
 	b.Run(cmd, args...)
 	b.buildErrors = nil
+}
+
+func (b *Build) RunCmd(cmd string, args ...string) func() {
+	return func() {
+		b.Run(cmd, args...)
+	}
+}
+
+func (b *Build) RunForceCmd(cmd string, args ...string) func() {
+	return func() {
+		b.ForceRun(cmd, args...)
+	}
 }
 
 func (b *Build) BashRun(cmd string, args ...string) {
@@ -153,4 +170,10 @@ func (b *Build) printAllErrorsAndExit() {
 	}
 	fmt.Println("can't execute build")
 	os.Exit(-1)
+}
+
+func (b *Build) Register(commands []Command) {
+	for _, cmd := range commands {
+		b.Cmd(cmd.SubCommand, cmd.Body)
+	}
 }
