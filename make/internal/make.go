@@ -1,44 +1,35 @@
 package main
 
-import (
-	"os"
-)
-
 const CoverageName = `coverage.out`
 
-var b = NewBuild(BuildOptions{})
-var commands = []Command{
-	{`build`, b.RunCmd(
+var B = NewBuild(BuildOptions{})
+var Commands = []Command{
+	{Name: `build`, Body: B.RunCmd(
 		Go, `build`, `./...`,
 	)},
 
-	{`buildInlineBounds`, b.RunCmd(
+	{Name: `buildInlineBounds`, Body: B.RunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
 
-	{`test`, b.RunCmd(
+	{Name: `test`, Body: B.RunCmd(
 		Go, `test`, `./...`,
 	)},
 
-	{`testDebug`, b.RunCmd(
+	{Name: `testDebug`, Body: B.RunCmd(
 		Go, `test`, `-v`, `./...`,
 	)},
 
-	{`coverage`, func() {
+	{Name: `coverage`, Body: func() {
 		clean()
-		b.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./lib/arena/...`)
-		b.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
+		B.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./lib/arena/...`)
+		B.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
 	}},
 
-	{`clean`, clean},
+	{Name: `clean`, Body: clean},
 }
 
 func clean() {
-	b.Run(Go, `clean`)
-	b.Run(`rm -f`, CoverageName)
-}
-
-func main() {
-	b.Register(commands)
-	b.Build(os.Args[1:])
+	B.Run(Go, `clean`)
+	B.Run(`rm -f`, CoverageName)
 }

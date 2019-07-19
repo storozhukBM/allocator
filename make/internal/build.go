@@ -11,8 +11,8 @@ import (
 const Go = "go"
 
 type Command struct {
-	SubCommand string
-	Body       func()
+	Name string
+	Body func()
 }
 
 type BuildOptions struct {
@@ -174,6 +174,11 @@ func (b *Build) printAllErrorsAndExit() {
 
 func (b *Build) Register(commands []Command) {
 	for _, cmd := range commands {
-		b.Cmd(cmd.SubCommand, cmd.Body)
+		b.Cmd(cmd.Name, cmd.Body)
 	}
+}
+
+func main() {
+	B.Register(Commands)
+	B.Build(os.Args[1:])
 }
