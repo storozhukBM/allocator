@@ -30,8 +30,10 @@ type Build struct {
 
 	currentTarget string
 
-	cmds                map[string]func()
-	cmdsRegistrationOrd []string
+	commands                map[string]func()
+	commandsRegistrationOrd []string
+
+	onceRuns map[string]struct{}
 }
 
 func NewBuild(o BuildOptions) *Build {
@@ -40,7 +42,8 @@ func NewBuild(o BuildOptions) *Build {
 		stdout: os.Stdout,
 		stderr: os.Stderr,
 
-		cmds: make(map[string]func()),
+		commands: make(map[string]func()),
+		onceRuns: make(map[string]struct{}),
 	}
 	if o.Env != nil {
 		result.env = make(map[string]string, len(o.Env))
@@ -101,7 +104,7 @@ func (b *Build) BashRun(cmd string, args ...string) {
 }
 
 func (b *Build) Cmd(subCommand string, body func()) {
-	_, ok := b.cmds[subCommand]
+	_, ok := b.commands[subCommand]
 	if ok {
 		b.buildErrors = append(
 			b.buildErrors, fmt.Errorf("can't register command `%v`. Already has command with such name", subCommand),
@@ -114,8 +117,22 @@ func (b *Build) Cmd(subCommand string, body func()) {
 		)
 		return
 	}
-	b.cmds[subCommand] = body
-	b.cmdsRegistrationOrd = append(b.cmdsRegistrationOrd, subCommand)
+	b.commands[subCommand] = body
+	b.commandsRegistrationOrd = append(b.commandsRegistrationOrd, subCommand)
+}
+
+func (b *Build) Register(commands []Command) {
+	for _, cmd := range commands {
+		b.Cmd(cmd.Name, cmd.Body)
+	}
+}
+
+func (b *Build) Once(name string, body func()) {
+	if _, ok := b.onceRuns[name]; ok {
+		return
+	}
+	b.onceRuns[name] = struct{}{}
+	body()
 }
 
 func (b *Build) Build(args []string) {
@@ -125,9 +142,9 @@ func (b *Build) Build(args []string) {
 	}
 
 	if len(args) == 0 {
-		for _, cmd := range b.cmdsRegistrationOrd {
+		for _, cmd := range b.commandsRegistrationOrd {
 			b.currentTarget = cmd
-			b.cmds[cmd]()
+			b.commands[cmd]()
 			if len(b.buildErrors) > 0 {
 				b.printAllErrorsAndExit()
 			}
@@ -141,7 +158,7 @@ func (b *Build) Build(args []string) {
 	}
 
 	for _, cmd := range args {
-		if _, ok := b.cmds[cmd]; !ok {
+		if _, ok := b.commands[cmd]; !ok {
 			b.printAvailableTargets()
 			fmt.Printf("can't find such command as: `%v`\n", cmd)
 			fmt.Println("can't execute build")
@@ -150,7 +167,7 @@ func (b *Build) Build(args []string) {
 	}
 	for _, cmd := range args {
 		b.currentTarget = cmd
-		b.cmds[cmd]()
+		b.commands[cmd]()
 		if len(b.buildErrors) > 0 {
 			b.printAllErrorsAndExit()
 		}
@@ -159,7 +176,7 @@ func (b *Build) Build(args []string) {
 
 func (b *Build) printAvailableTargets() {
 	fmt.Printf("available targets:\n")
-	for _, cmd := range b.cmdsRegistrationOrd {
+	for _, cmd := range b.commandsRegistrationOrd {
 		fmt.Printf("	%+v\n", cmd)
 	}
 }
@@ -170,12 +187,6 @@ func (b *Build) printAllErrorsAndExit() {
 	}
 	fmt.Println("can't execute build")
 	os.Exit(-1)
-}
-
-func (b *Build) Register(commands []Command) {
-	for _, cmd := range commands {
-		b.Cmd(cmd.Name, cmd.Body)
-	}
 }
 
 func main() {

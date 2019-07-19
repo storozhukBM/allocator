@@ -30,6 +30,8 @@ var Commands = []Command{
 }
 
 func clean() {
-	B.Run(Go, `clean`)
-	B.Run(`rm -f`, CoverageName)
+	B.Once(`cleanOnce`, func() {
+		B.Run(Go, `clean`)
+		B.Run(`rm`, `-f`, CoverageName)
+	})
 }
