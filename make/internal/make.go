@@ -11,6 +11,7 @@ var commands = []Command{
 	{`build`, b.RunCmd(
 		Go, `build`, `./...`,
 	)},
+
 	{`buildInlineBounds`, b.RunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
@@ -18,6 +19,7 @@ var commands = []Command{
 	{`test`, b.RunCmd(
 		Go, `test`, `./...`,
 	)},
+
 	{`testDebug`, b.RunCmd(
 		Go, `test`, `-v`, `./...`,
 	)},
@@ -27,15 +29,16 @@ var commands = []Command{
 		b.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./lib/arena/...`)
 		b.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
 	}},
-	{`clean`, clean},
-}
 
-func main() {
-	b.Register(commands)
-	b.Build(os.Args[1:])
+	{`clean`, clean},
 }
 
 func clean() {
 	b.Run(Go, `clean`)
 	b.Run(`rm -f`, CoverageName)
+}
+
+func main() {
+	b.Register(commands)
+	b.Build(os.Args[1:])
 }
