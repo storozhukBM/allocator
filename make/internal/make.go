@@ -8,13 +8,19 @@ const CoverageName = `coverage.out`
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
-	{`build`, b.RunCmd(Go, `build`, `./...`)},
+	{`build`, b.RunCmd(
+		Go, `build`, `./...`,
+	)},
 	{`buildInlineBounds`, b.RunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
 
-	{`test`, b.RunCmd(Go, `test`, `./...`)},
-	{`testDebug`, b.RunCmd(Go, `test`, `-v`, `./...`)},
+	{`test`, b.RunCmd(
+		Go, `test`, `./...`,
+	)},
+	{`testDebug`, b.RunCmd(
+		Go, `test`, `-v`, `./...`,
+	)},
 
 	{`coverage`, func() {
 		clean()
@@ -31,5 +37,5 @@ func main() {
 
 func clean() {
 	b.Run(Go, `clean`)
-	b.Run(`rm`, `-f`, CoverageName)
+	b.Run(`rm -f`, CoverageName)
 }
