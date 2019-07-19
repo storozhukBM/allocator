@@ -40,5 +40,5 @@ Done:
 
 Test
 ```
-make test
+go run ./make/internal test
 ```
