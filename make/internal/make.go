@@ -35,3 +35,8 @@ func clean() {
 		B.Run(`rm`, `-f`, CoverageName)
 	})
 }
+
+func main() {
+	B.Register(Commands)
+	B.BuildFromOsArgs()
+}

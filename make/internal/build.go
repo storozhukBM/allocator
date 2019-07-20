@@ -135,6 +135,10 @@ func (b *Build) Once(name string, body func()) {
 	body()
 }
 
+func (b *Build) BuildFromOsArgs() {
+	B.Build(os.Args[1:])
+}
+
 func (b *Build) Build(args []string) {
 	if len(b.buildErrors) > 0 {
 		b.printAllErrorsAndExit()
@@ -187,9 +191,4 @@ func (b *Build) printAllErrorsAndExit() {
 	}
 	fmt.Println("can't execute build")
 	os.Exit(-1)
-}
-
-func main() {
-	B.Register(Commands)
-	B.Build(os.Args[1:])
 }
