@@ -26,6 +26,12 @@ var Commands = []Command{
 		B.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
 	}},
 
+	{Name: `coverage_gen`, Body: func() {
+		clean()
+		B.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./generator/internal/testdata/testdata_test/...`)
+		B.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
+	}},
+
 	{Name: `clean`, Body: clean},
 }
 

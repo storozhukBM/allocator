@@ -3,6 +3,7 @@ package arena_test
 import (
 	"fmt"
 	"github.com/storozhukBM/allocator/lib/arena"
+	"runtime/debug"
 	"testing"
 	"unsafe"
 )
@@ -91,7 +92,8 @@ func assert(condition bool, msg string, args ...interface{}) {
 func failOnError(t *testing.T, e error) {
 	if e != nil {
 		t.Error(e)
-		panic("unexpected error happened: " + e.Error())
+		debug.PrintStack()
+		t.FailNow()
 	}
 }
 
