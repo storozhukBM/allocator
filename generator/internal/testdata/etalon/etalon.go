@@ -5,8 +5,8 @@ type coordinate int
 type coordinates []coordinate
 
 type Point struct {
-	X int
-	Y int
+	X int32
+	Y int32
 }
 
 type PointsVector struct {

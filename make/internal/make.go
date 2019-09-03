@@ -16,11 +16,8 @@ var Commands = []Command{
 	{Name: `clean`, Body: clean},
 	{Name: `testLib`, Body: testLib},
 	{Name: `testCodeGen`, Body: testCodeGen},
-
-	{Name: `test`, Body: func() {
-		testLib()
-		testCodeGen()
-	}},
+	{Name: `test`, Body: func() { testLib(); testCodeGen() }},
+	{Name: `generateTestAllocator`, Body: generateTestAllocator},
 
 	{Name: `coverage`, Body: func() {
 		clean()
@@ -30,20 +27,25 @@ var Commands = []Command{
 
 	{Name: `coverageCodeGen`, Body: func() {
 		clean()
+		generateTestAllocator()
 		B.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./generator/internal/testdata/testdata_test/...`)
 		B.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
 	}},
 }
 
-func testLib() {
-	defer forceClean()
-	B.Run(Go, `test`, `./lib/...`)
+func generateTestAllocator() {
 	B.Run(Go, `build`, `-o`, CodeGenerationToolName, `./generator/main.go`)
 	B.Run(
 		`./`+CodeGenerationToolName,
 		`-type`, `StablePointsVector`,
 		`-dir`, `./generator/internal/testdata/etalon/`,
 	)
+}
+
+func testLib() {
+	defer forceClean()
+	B.Run(Go, `test`, `./lib/...`)
+	generateTestAllocator()
 	B.Run(Go, `test`, `./generator/internal/testdata/testdata_test/...`)
 }
 

@@ -1,7 +1,6 @@
 package etalon_test_test
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -12,10 +11,45 @@ import (
 	"github.com/storozhukBM/allocator/lib/arena"
 )
 
+const bytesRequiredForBasicTest = 580
+
 func TestUninitializedAlloc(t *testing.T) {
 	t.Parallel()
-	notInitializedStand := &arenaGenAllocationCheckingStand{}
-	notInitializedStand.check(t, nil)
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, nil)
+}
+
+func TestSimpleArenaWithoutConstructor(t *testing.T) {
+	t.Parallel()
+	a := &arena.GenericAllocator{}
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
+}
+
+func TestSimpleArenaWithInitialCapacity(t *testing.T) {
+	t.Parallel()
+	a := arena.NewGenericAllocator(arena.Options{InitialCapacity: 64})
+
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
+}
+
+func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
+	t.Parallel()
+
+	a := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:        bytesRequiredForBasicTest,
+		AllocationLimitInBytes: 2 * bytesRequiredForBasicTest,
+	})
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
+
+	ls := &arenaGenAllocationLimitCheckingStand{}
+	ls.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
 }
 
 type testAllocator interface {
@@ -29,6 +63,9 @@ type testAllocator interface {
 type arenaGenAllocationCheckingStand struct{}
 
 func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocator) {
+	t.Logf("Point: size: %+v; alignment: %+v", unsafe.Sizeof(etalon.Point{}), unsafe.Alignof(etalon.Point{}))
+	t.Logf("[3]Point: size: %+v; alignment: %+v", unsafe.Sizeof([3]etalon.Point{}), unsafe.Alignof([3]etalon.Point{}))
+
 	alloc := etalon.NewStablePointsVectorView(target)
 	arenaPointsVector, allocErr := alloc.MakeSliceWithCapacity(0, 4)
 	failOnError(t, allocErr)
@@ -49,7 +86,6 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 		eq(t, expectedVector, arenaPointsVector, "should be equal")
 		eq(t, 1, len(arenaPointsVector), "len should be 1")
 		eq(t, 4, cap(arenaPointsVector), "cap should be 4")
-		t.Logf("vector state: %+v", arenaPointsVector)
 	}
 	{
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
@@ -85,7 +121,6 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 		eq(t, expectedVector, arenaPointsVector, "should be equal")
 		eq(t, 3, len(arenaPointsVector), "len should be 3")
 		eq(t, 4, cap(arenaPointsVector), "cap should be 4")
-		t.Logf("vector state: %+v", arenaPointsVector)
 	}
 	{
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
@@ -131,73 +166,122 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 		eq(t, expectedVector, arenaPointsVector, "should be equal")
 		eq(t, 5, len(arenaPointsVector), "len should be 5")
 		eq(t, true, cap(arenaPointsVector) >= 5, "cap should be >= 5")
-		t.Logf("vector state: %+v", arenaPointsVector)
+	}
+	if target == nil {
+		return
+	}
+	{
+		_, ptrAllocErr := target.Alloc(1, 1)
+		failOnError(t, ptrAllocErr)
+
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+			}},
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+			}},
+		)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+				{X: 6, Y: 7},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+				{X: 7, Y: 8},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 0, Y: 1},
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 9, Y: 8},
+				{X: 7, Y: 6},
+				{X: 5, Y: 4},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+			}},
+		}
+		eq(t, expectedVector, arenaPointsVector, "should be equal")
+		eq(t, 7, len(arenaPointsVector), "len should be 7")
+		eq(t, true, cap(arenaPointsVector) >= 7, "cap should be >= 7")
+	}
+	{
+		arenaPointsVector, allocErr = alloc.MakeSlice(1)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 0},
+			{X: 0, Y: 0},
+		}}}
+		eq(t, expectedVector, arenaPointsVector, "should be equal")
+		eq(t, 1, len(arenaPointsVector), "len should be 1")
+		eq(t, 1, cap(arenaPointsVector), "cap should be 1")
 	}
 }
 
-//
-//type arenaByteAllocationLimitsCheckingStand struct{}
-//
-//func (s *arenaByteAllocationLimitsCheckingStand) check(t *testing.T, target allocator) {
-//	alloc := arena.NewBytesView(target)
-//	{
-//		arenaBytes, allocErr := alloc.MakeBytes(target.Metrics().AvailableBytes + 1)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
-//	}
-//	{
-//		buf := make([]byte, target.Metrics().AvailableBytes+1)
-//		arenaBytes, allocErr := alloc.Embed(buf)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
-//	}
-//	{
-//		buf := make([]byte, target.Metrics().AvailableBytes+1)
-//		arenaStr, allocErr := alloc.EmbedAsString(buf)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaStr == "", "arenaBytes should be empty")
-//	}
-//	{
-//		buf := make([]byte, target.Metrics().AvailableBytes+1)
-//		arenaBytes, allocErr := alloc.EmbedAsBytes(buf)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == nil, "arenaBytes should be empty")
-//	}
-//	{
-//		arenaBytes, allocErr := alloc.MakeBytesWithCapacity(0, target.Metrics().AvailableBytes+1)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
-//	}
-//	{
-//		arenaBytes, allocNoErr := alloc.MakeBytesWithCapacity(0, 1)
-//		failOnError(t, allocNoErr)
-//		assert(arenaBytes != arena.Bytes{}, "arenaBytes shouldn't be empty")
-//
-//		toAppend := make([]byte, target.Metrics().AvailableBytes+1)
-//		arenaBytes, allocErr := alloc.Append(arenaBytes, toAppend...)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
-//	}
-//	{
-//		arenaBytes, allocNoErr := alloc.MakeBytesWithCapacity(0, 0)
-//		failOnError(t, allocNoErr)
-//		assert(arenaBytes != arena.Bytes{}, "arenaBytes shouldn't be empty")
-//
-//		toAppend := make([]byte, target.Metrics().AvailableBytes+1)
-//		arenaBytes, allocErr := alloc.Append(arenaBytes, toAppend...)
-//		assert(allocErr != nil, "allocation limit should be triggered")
-//		assert(arenaBytes == arena.Bytes{}, "bytes should be empty")
-//	}
-//}
+type arenaGenAllocationLimitCheckingStand struct{}
 
-func expectPanic(t *testing.T, fToPanic func(t *testing.T)) {
-	defer func() {
-		p := recover()
-		if p == nil {
-			failOnError(t, errors.New("expected panic not happened"))
-		}
-	}()
-	fToPanic(t)
+func (s *arenaGenAllocationLimitCheckingStand) check(t *testing.T, target testAllocator) {
+	t.Logf("alloc metrics: %+v", target.Metrics())
+	alloc := etalon.NewStablePointsVectorView(target)
+	sizeOfVector := int(unsafe.Sizeof(etalon.StablePointsVector{}))
+	{
+		vector, allocErr := alloc.MakeSlice((target.Metrics().AvailableBytes / sizeOfVector) + 1)
+		expectErr(t, allocErr)
+		eq(t, true, vector == nil, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
+	{
+		vector, allocErr := alloc.MakeSliceWithCapacity(0, (target.Metrics().AvailableBytes/sizeOfVector)+1)
+		expectErr(t, allocErr)
+		eq(t, true, vector == nil, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
+	{
+		vector, allocNoErr := alloc.MakeSliceWithCapacity(0, 1)
+		failOnError(t, allocNoErr)
+		eq(t, true, vector != nil, "vector should be empty")
+
+		toAppend := make([]etalon.StablePointsVector, (target.Metrics().AvailableBytes/sizeOfVector)+1)
+		newVec, allocErr := alloc.Append(vector, toAppend...)
+		expectErr(t, allocErr)
+		eq(t, true, newVec == nil, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
+	{
+		vector, allocNoErr := alloc.MakeSliceWithCapacity(0, 0)
+		failOnError(t, allocNoErr)
+		eq(t, true, vector != nil, "vector should be empty")
+
+		toAppend := make([]etalon.StablePointsVector, (target.Metrics().AvailableBytes/sizeOfVector)+1)
+		newVec, allocErr := alloc.Append(vector, toAppend...)
+		expectErr(t, allocErr)
+		eq(t, true, newVec == nil, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
 }
 
 func notEq(t *testing.T, expected interface{}, actual interface{}, msg string, args ...interface{}) {
@@ -215,6 +299,8 @@ func eq(t *testing.T, expected interface{}, actual interface{}, msg string, args
 		return
 	}
 	t.Errorf("objects are not equal. `%+v` != `%+v`", expected, actual)
+	t.Errorf("exp: `%+v`\n", expected)
+	t.Errorf("act: `%+v`\n", actual)
 	t.Errorf(msg, args...)
 	debug.PrintStack()
 	t.FailNow()

@@ -101,6 +101,7 @@ func (s *coordinateView) makeSlice(len int) (*reflect.SliceHeader, error) {
 	if allocErr != nil {
 		return nil, allocErr
 	}
+	s.lastAllocatedPtr = slicePtr
 	sliceRef := s.alloc.ToRef(slicePtr)
 	sliceHdr := reflect.SliceHeader{
 		Data: uintptr(sliceRef),
