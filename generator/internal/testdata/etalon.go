@@ -37,6 +37,6 @@ type CircleCirclePtr struct {
 	Color uint64
 }
 
-type StableCirclePtrVector struct {
+type FixedCircleCirclePtrVector struct {
 	circles [3]CircleCirclePtr
 }

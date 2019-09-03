@@ -7,38 +7,54 @@ import (
 	"unsafe"
 )
 
-func TestGeneratorForOne(t *testing.T) {
-	t.Skip()
+func TestGeneratorForPoint(t *testing.T) {
+	t.Parallel()
 	failOnError(t, RunGeneratorForTypes("./testdata", []string{"Point"}))
 }
 
-func TestGeneratorFor(t *testing.T) {
-	t.Skip()
-	validTypes := []string{
-		"Point",
-		"coordinate",
-		"Circle",
-		"CircleColor",
-		"StablePointsVector",
-	}
-	for _, validType := range validTypes {
-		t.Run("_valid_"+validType, func(t *testing.T) {
-			failOnError(t, RunGeneratorForTypes("./testdata", []string{validType}))
-		})
-	}
+func TestGeneratorForCoordinate(t *testing.T) {
+	t.Parallel()
+	failOnError(t, RunGeneratorForTypes("./testdata", []string{"coordinate"}))
+}
 
-	invalidTypes := []string{
-		"CirclePtr",
-		"CircleCirclePtr",
-		"coordinates",
-		"PointsVector",
-		"StableCirclePtrVector",
-	}
-	for _, invalidType := range invalidTypes {
-		t.Run("_invalid_"+invalidType, func(t *testing.T) {
-			expectErr(t, RunGeneratorForTypes("./testdata", []string{invalidType}))
-		})
-	}
+func TestGeneratorForCircle(t *testing.T) {
+	t.Parallel()
+	failOnError(t, RunGeneratorForTypes("./testdata", []string{"Circle"}))
+}
+
+func TestGeneratorForCircleColor(t *testing.T) {
+	t.Parallel()
+	failOnError(t, RunGeneratorForTypes("./testdata", []string{"CircleColor"}))
+}
+
+func TestGeneratorForStablePointsVector(t *testing.T) {
+	t.Parallel()
+	failOnError(t, RunGeneratorForTypes("./testdata", []string{"StablePointsVector"}))
+}
+
+func TestGeneratorForInvalidCirclePtr(t *testing.T) {
+	t.Parallel()
+	expectErr(t, RunGeneratorForTypes("./testdata", []string{"CirclePtr"}))
+}
+
+func TestGeneratorForInvalidCircleCirclePtr(t *testing.T) {
+	t.Parallel()
+	expectErr(t, RunGeneratorForTypes("./testdata", []string{"CircleCirclePtr"}))
+}
+
+func TestGeneratorForInvalidCoordinates(t *testing.T) {
+	t.Parallel()
+	expectErr(t, RunGeneratorForTypes("./testdata", []string{"coordinates"}))
+}
+
+func TestGeneratorForInvalidPointsVector(t *testing.T) {
+	t.Parallel()
+	expectErr(t, RunGeneratorForTypes("./testdata", []string{"PointsVector"}))
+}
+
+func TestGeneratorForInvalidFixedCircleCirclePtrVector(t *testing.T) {
+	t.Parallel()
+	expectErr(t, RunGeneratorForTypes("./testdata", []string{"FixedCircleCirclePtrVector"}))
 }
 
 type some struct {

@@ -3,13 +3,14 @@ Primitive arena allocator
 
 TODO:
 First Release scope
+1. code gen - take into account the observability of specified structure
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
 
 Second Release
 1. instrumented arena
-1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize).
+1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)
 1. close arena function
 1. arena leak detector
 1. to ref pointers leak detector
