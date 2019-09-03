@@ -1,4 +1,4 @@
-package testdata
+package etalon
 
 import (
 	"github.com/storozhukBM/allocator/lib/arena"
@@ -36,7 +36,7 @@ func (s *PointView) MakeSliceWithCapacity(length int, capacity int) ([]Point, er
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
 	}
-	sliceHdr, allocErr := s.makeSlice(length)
+	sliceHdr, allocErr := s.makeSlice(capacity)
 	if allocErr != nil {
 		return nil, allocErr
 	}
@@ -60,13 +60,13 @@ func (s *PointView) growIfNecessary(slice []Point, requiredLen int) (*reflect.Sl
 	tSize := unsafe.Sizeof(tVar)
 	requiredSizeInBytes := requiredLen * int(tSize)
 	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
-	availableSize := int(sliceHdr.Cap - sliceHdr.Len)
-	if availableSize >= requiredSizeInBytes {
+	availableSizeInBytes := int(sliceHdr.Cap-sliceHdr.Len) * int(tSize)
+	if availableSizeInBytes >= requiredSizeInBytes {
 		return sliceHdr, nil
 	}
 
-	lastAllocatedRef := uintptr(s.alloc.ToRef(s.lastAllocatedPtr))
-	if sliceHdr.Data == lastAllocatedRef {
+	emptyPtr := arena.Ptr{}
+	if s.lastAllocatedPtr != emptyPtr && sliceHdr.Data == uintptr(s.alloc.ToRef(s.lastAllocatedPtr)) {
 		nextPtr, probeAllocErr := s.alloc.Alloc(0, 1)
 		if probeAllocErr != nil {
 			return nil, probeAllocErr

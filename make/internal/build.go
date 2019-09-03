@@ -69,10 +69,12 @@ func (b *Build) Run(cmd string, args ...string) {
 	c.Stderr = b.stdout
 	c.Stdout = b.stderr
 	c.Stdin = os.Stdin
-	if b.currentTarget != "" {
-		fmt.Printf("[%s] ", b.currentTarget)
+	if b.verbose {
+		if b.currentTarget != "" {
+			fmt.Printf("[%s] ", b.currentTarget)
+		}
+		fmt.Printf("%s %s\n", cmd, strings.Join(args, " "))
 	}
-	fmt.Printf("%s %s\n", cmd, strings.Join(args, " "))
 	runErr := c.Run()
 	if runErr != nil {
 		b.buildErrors = append(b.buildErrors, runErr)
@@ -96,10 +98,10 @@ func (b *Build) RunForceCmd(cmd string, args ...string) func() {
 	}
 }
 
-func (b *Build) BashRun(cmd string, args ...string) {
+func (b *Build) ShRun(cmd string, args ...string) {
 	fullCmd := []string{cmd}
 	fullCmd = append(fullCmd, args...)
-	b.Run("bash", "-c", strings.Join(fullCmd, " "))
+	b.Run("/bin/sh", "-c", strings.Join(fullCmd, " "))
 	b.buildErrors = nil
 }
 
@@ -161,6 +163,11 @@ func (b *Build) Build(args []string) {
 		return
 	}
 
+	if args[0] == "-v" {
+		b.verbose = true
+		args = args[1:]
+	}
+
 	for _, cmd := range args {
 		if _, ok := b.commands[cmd]; !ok {
 			b.printAvailableTargets()
@@ -171,6 +178,7 @@ func (b *Build) Build(args []string) {
 	}
 	for _, cmd := range args {
 		b.currentTarget = cmd
+		b.printCurrentCommand()
 		b.commands[cmd]()
 		if len(b.buildErrors) > 0 {
 			b.printAllErrorsAndExit()
@@ -181,8 +189,15 @@ func (b *Build) Build(args []string) {
 func (b *Build) printAvailableTargets() {
 	fmt.Printf("available targets:\n")
 	for _, cmd := range b.commandsRegistrationOrd {
-		fmt.Printf("	%+v\n", cmd)
+		fmt.Printf("%+v\n", cmd)
 	}
+}
+
+const blue = "\u001b[36m"
+const reset = "\u001b[0m"
+
+func (b *Build) printCurrentCommand() {
+	fmt.Println(blue + "[" + b.currentTarget + "]" + reset)
 }
 
 func (b *Build) printAllErrorsAndExit() {

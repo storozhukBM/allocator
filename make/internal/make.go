@@ -13,14 +13,14 @@ var Commands = []Command{
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
 
-	{Name: `test`, Body: func() {
-		testCodeGen()
-		testLib()
-	}},
-
+	{Name: `clean`, Body: clean},
 	{Name: `testLib`, Body: testLib},
-
 	{Name: `testCodeGen`, Body: testCodeGen},
+
+	{Name: `test`, Body: func() {
+		testLib()
+		testCodeGen()
+	}},
 
 	{Name: `coverage`, Body: func() {
 		clean()
@@ -33,33 +33,35 @@ var Commands = []Command{
 		B.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+CoverageName, `./generator/internal/testdata/testdata_test/...`)
 		B.Run(Go, `tool`, `cover`, `-html=`+CoverageName)
 	}},
-
-	{Name: `clean`, Body: clean},
 }
 
 func testLib() {
+	defer forceClean()
 	B.Run(Go, `test`, `./lib/...`)
-}
-
-func testCodeGen() {
-	clean()
 	B.Run(Go, `build`, `-o`, CodeGenerationToolName, `./generator/main.go`)
 	B.Run(
 		`./`+CodeGenerationToolName,
 		`-type`, `StablePointsVector`,
-		`-dir`, `./generator/internal/testdata/`,
+		`-dir`, `./generator/internal/testdata/etalon/`,
 	)
-	//	B.Run(`cp`, `./generator/internal/testdata/testdata_test/*`, `./generator/internal/testdata/`)
 	B.Run(Go, `test`, `./generator/internal/testdata/testdata_test/...`)
 }
 
+func testCodeGen() {
+	defer forceClean()
+	B.Run(Go, `test`, `./generator/...`)
+}
+
 func clean() {
-	B.Once(`cleanOnce`, func() {
-		B.Run(Go, `clean`)
-		B.Run(`rm`, `-f`, CoverageName)
-		B.Run(`rm`, `-f`, CodeGenerationToolName)
-		B.Run(`rm`, `-f`, `./generator/internal/testdata/*.alloc.go`)
-	})
+	B.Once(`cleanOnce`, func() { forceClean() })
+}
+
+func forceClean() {
+	B.Run(Go, `clean`)
+	B.Run(`rm`, `-f`, CoverageName)
+	B.Run(`rm`, `-f`, CodeGenerationToolName)
+	// sh run used to expand wildcard
+	B.ShRun(`rm`, `-f`, `./generator/internal/testdata/etalon/*.alloc.go`)
 }
 
 func main() {

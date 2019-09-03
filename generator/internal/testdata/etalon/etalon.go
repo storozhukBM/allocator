@@ -1,4 +1,4 @@
-package testdata
+package etalon
 
 type coordinate int
 

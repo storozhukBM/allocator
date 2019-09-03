@@ -1,4 +1,4 @@
-package testdata_test_test
+package etalon_test_test
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/storozhukBM/allocator/generator/internal/testdata"
+	"github.com/storozhukBM/allocator/generator/internal/testdata/etalon"
 	"github.com/storozhukBM/allocator/lib/arena"
 )
 
@@ -29,19 +29,19 @@ type testAllocator interface {
 type arenaGenAllocationCheckingStand struct{}
 
 func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocator) {
-	alloc := testdata.NewStablePointsVectorView(target)
+	alloc := etalon.NewStablePointsVectorView(target)
 	arenaPointsVector, allocErr := alloc.MakeSliceWithCapacity(0, 4)
 	failOnError(t, allocErr)
 	notEq(t, arenaPointsVector, nil, "new slice can't be empty")
 
 	{
-		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector, testdata.StablePointsVector{Points: [3]testdata.Point{
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector, etalon.StablePointsVector{Points: [3]etalon.Point{
 			{X: 1, Y: 2},
 			{X: 3, Y: 4},
 			{X: 5, Y: 6},
 		}})
 		failOnError(t, allocErr)
-		expectedVector := []testdata.StablePointsVector{{Points: [3]testdata.Point{
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
 			{X: 1, Y: 2},
 			{X: 3, Y: 4},
 			{X: 5, Y: 6},
@@ -53,30 +53,30 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 	}
 	{
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
-			testdata.StablePointsVector{Points: [3]testdata.Point{
+			etalon.StablePointsVector{Points: [3]etalon.Point{
 				{X: 2, Y: 3},
 				{X: 4, Y: 5},
 				{X: 6, Y: 7},
 			}},
-			testdata.StablePointsVector{Points: [3]testdata.Point{
+			etalon.StablePointsVector{Points: [3]etalon.Point{
 				{X: 3, Y: 4},
 				{X: 5, Y: 6},
 				{X: 7, Y: 8},
 			}},
 		)
 		failOnError(t, allocErr)
-		expectedVector := []testdata.StablePointsVector{
-			{Points: [3]testdata.Point{
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
 				{X: 1, Y: 2},
 				{X: 3, Y: 4},
 				{X: 5, Y: 6},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 2, Y: 3},
 				{X: 4, Y: 5},
 				{X: 6, Y: 7},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 3, Y: 4},
 				{X: 5, Y: 6},
 				{X: 7, Y: 8},
@@ -89,40 +89,40 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 	}
 	{
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
-			testdata.StablePointsVector{Points: [3]testdata.Point{
+			etalon.StablePointsVector{Points: [3]etalon.Point{
 				{X: 0, Y: 1},
 				{X: 2, Y: 3},
 				{X: 4, Y: 5},
 			}},
-			testdata.StablePointsVector{Points: [3]testdata.Point{
+			etalon.StablePointsVector{Points: [3]etalon.Point{
 				{X: 9, Y: 8},
 				{X: 7, Y: 6},
 				{X: 5, Y: 4},
 			}},
 		)
 		failOnError(t, allocErr)
-		expectedVector := []testdata.StablePointsVector{
-			{Points: [3]testdata.Point{
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
 				{X: 1, Y: 2},
 				{X: 3, Y: 4},
 				{X: 5, Y: 6},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 2, Y: 3},
 				{X: 4, Y: 5},
 				{X: 6, Y: 7},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 3, Y: 4},
 				{X: 5, Y: 6},
 				{X: 7, Y: 8},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 0, Y: 1},
 				{X: 2, Y: 3},
 				{X: 4, Y: 5},
 			}},
-			{Points: [3]testdata.Point{
+			{Points: [3]etalon.Point{
 				{X: 9, Y: 8},
 				{X: 7, Y: 6},
 				{X: 5, Y: 4},
