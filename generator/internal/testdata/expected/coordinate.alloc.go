@@ -6,18 +6,18 @@ import (
 	"unsafe"
 )
 
-type internalcoordinateAllocator interface {
+type internalCoordinateAllocator interface {
 	Alloc(size uintptr, alignment uintptr) (arena.Ptr, error)
 	ToRef(p arena.Ptr) unsafe.Pointer
 	Metrics() arena.Metrics
 }
 
 type coordinateView struct {
-	alloc            internalcoordinateAllocator
+	alloc            internalCoordinateAllocator
 	lastAllocatedPtr arena.Ptr
 }
 
-func NewcoordinateView(alloc internalcoordinateAllocator) *coordinateView {
+func newCoordinateView(alloc internalCoordinateAllocator) *coordinateView {
 	if alloc == nil {
 		return &coordinateView{alloc: &arena.GenericAllocator{}}
 	}

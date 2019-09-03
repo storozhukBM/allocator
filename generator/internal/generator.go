@@ -12,12 +12,15 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 type allocatorDefinition struct {
-	DirName        string
-	PkgName        string
-	TargetTypeName string
+	DirName                      string
+	PkgName                      string
+	TargetTypeName               string
+	TypeNameWithUpperFirstLetter string
+	Exported                     bool
 }
 
 func RunGeneratorForTypes(dirName string, targetTypes []string) error {
@@ -61,10 +64,16 @@ func generateAllocators(fset *token.FileSet, obj types.Object, typeName string) 
 			obj.Type(), fset.Position(obj.Pos()), fset.Position(checkPos), checkErr,
 		)
 	}
+	typeNameRunes := bytes.Runes([]byte(typeName))
+	typeNameRunes[0] = unicode.ToUpper(typeNameRunes[0])
+	typeNameWithUpperFirstLetter := string(typeNameRunes)
+
 	definition := allocatorDefinition{
-		DirName:        obj.Pkg().Path(),
-		PkgName:        obj.Pkg().Name(),
-		TargetTypeName: typeName,
+		DirName:                      obj.Pkg().Path(),
+		PkgName:                      obj.Pkg().Name(),
+		TargetTypeName:               typeName,
+		TypeNameWithUpperFirstLetter: typeNameWithUpperFirstLetter,
+		Exported:                     obj.Exported(),
 	}
 	return generateFromTemplateAndWriteToFile(definition)
 }

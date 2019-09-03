@@ -1,6 +1,8 @@
 package generator
 
-import "text/template"
+import (
+	"text/template"
+)
 
 var embeddedTemplate = template.Must(template.New("embedded").Parse(`
 package {{.PkgName}}
@@ -12,18 +14,22 @@ import (
 	"unsafe"
 )
 
-type internal{{$ttName}}Allocator interface {
+type internal{{.TypeNameWithUpperFirstLetter}}Allocator interface {
 	Alloc(size uintptr, alignment uintptr) (arena.Ptr, error)
 	ToRef(p arena.Ptr) unsafe.Pointer
 	Metrics() arena.Metrics
 }
 
 type {{$ttName}}View struct {
-	alloc            internal{{$ttName}}Allocator
+	alloc            internal{{.TypeNameWithUpperFirstLetter}}Allocator
 	lastAllocatedPtr arena.Ptr
 }
 
-func New{{$ttName}}View(alloc internal{{$ttName}}Allocator) *{{$ttName}}View {
+{{- if .Exported}}
+func New{{.TypeNameWithUpperFirstLetter}}View(alloc internal{{.TypeNameWithUpperFirstLetter}}Allocator) *{{$ttName}}View {
+{{- else}}
+func new{{.TypeNameWithUpperFirstLetter}}View(alloc internal{{.TypeNameWithUpperFirstLetter}}Allocator) *{{$ttName}}View {
+{{- end}}
 	if alloc == nil {
 		return &{{$ttName}}View{alloc: &arena.GenericAllocator{}}
 	}

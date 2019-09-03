@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/storozhukBM/allocator/generator/internal"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/storozhukBM/allocator/generator/internal"
 )
 
 func main() {
