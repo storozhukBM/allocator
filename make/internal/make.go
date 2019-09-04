@@ -9,7 +9,7 @@ var Commands = []Command{
 		Go, `build`, `./...`,
 	)},
 
-	{Name: `buildInlineBounds`, Body: B.RunCmd(
+	{Name: `buildInlineBounds`, Body: B.ShRunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
 
