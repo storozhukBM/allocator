@@ -49,7 +49,10 @@ func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 	t.Parallel()
-	a := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest, AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	a := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:        requiredBytesForBasicTest,
+		AllocationLimitInBytes: 2 * requiredBytesForBasicTest,
+	})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 

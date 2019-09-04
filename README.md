@@ -9,7 +9,7 @@ First Release scope
 
 Second Release
 1. instrumented arena
-1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize).
+1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)
 1. close arena function
 1. arena leak detector
 1. to ref pointers leak detector
@@ -36,7 +36,7 @@ Done:
     1. Copy to heap with to string cast
     1. Arena string allocation option from passed []byte
     1. Optimization of append to consecutive byte slices where we try to fit allocation in currently available buffer
-
+1. Code generation - take into account the observability of specified structure
 
 Test
 ```
