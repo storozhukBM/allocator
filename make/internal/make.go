@@ -62,8 +62,9 @@ func forceClean() {
 	B.Run(Go, `clean`)
 	B.Run(`rm`, `-f`, CoverageName)
 	B.Run(`rm`, `-f`, CodeGenerationToolName)
+	B.Run(`rm`, `-f`, `./example/main`)
 	// sh run used to expand wildcard
-	B.ShRun(`rm`, `-f`, `./generator/internal/testdata/etalon/*.alloc.go`)
+	B.ForceShRun(`rm`, `-f`, `./generator/internal/testdata/etalon/*.alloc.go`)
 }
 
 func main() {

@@ -98,11 +98,15 @@ func (b *Build) RunForceCmd(cmd string, args ...string) func() {
 	}
 }
 
+func (b *Build) ForceShRun(cmd string, args ...string) {
+	b.ShRun(cmd, args...)
+	b.buildErrors = nil
+}
+
 func (b *Build) ShRun(cmd string, args ...string) {
 	fullCmd := []string{cmd}
 	fullCmd = append(fullCmd, args...)
 	b.Run("/bin/sh", "-c", strings.Join(fullCmd, " "))
-	b.buildErrors = nil
 }
 
 func (b *Build) Cmd(subCommand string, body func()) {
