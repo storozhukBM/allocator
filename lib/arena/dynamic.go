@@ -24,6 +24,10 @@ type DynamicAllocator struct {
 	arenaMask uint16
 }
 
+func NewDynamicAllocator() *DynamicAllocator {
+	return &DynamicAllocator{}
+}
+
 func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
 	result := &DynamicAllocator{}
 	result.grow(int(size))

@@ -36,6 +36,24 @@ func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 	t.Logf("alloc metrics: %+v", a.Metrics())
 }
 
+func TestDynamicArena(t *testing.T) {
+	t.Parallel()
+
+	a := arena.NewDynamicAllocator()
+	for i := 0; i < 100; i++ {
+		s := &arenaGenAllocationCheckingStand{}
+		s.check(t, a)
+	}
+	t.Logf("alloc metrics: %+v", a.Metrics())
+
+	a.Clear()
+	t.Logf("alloc metrics: %+v", a.Metrics())
+
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
+}
+
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 	t.Parallel()
 
@@ -63,14 +81,189 @@ type testAllocator interface {
 type arenaGenAllocationCheckingStand struct{}
 
 func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocator) {
-	t.Logf("Point: size: %+v; alignment: %+v", unsafe.Sizeof(etalon.Point{}), unsafe.Alignof(etalon.Point{}))
-	t.Logf("[3]Point: size: %+v; alignment: %+v", unsafe.Sizeof([3]etalon.Point{}), unsafe.Alignof([3]etalon.Point{}))
-
 	alloc := etalon.NewStablePointsVectorView(target)
-	arenaPointsVector, allocErr := alloc.MakeSliceWithCapacity(0, 4)
+	s.verifySliceAlloc(t, alloc)
+	s.verifyBufferAlloc(t, alloc)
+	s.verifySingleItemAllocation(t, alloc)
+}
+
+func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(t *testing.T, view *etalon.StablePointsVectorView) {
+	alloc := view.Buffer
+	arenaPointsVector, allocErr := alloc.MakeWithCapacity(0, 4)
 	failOnError(t, allocErr)
 	notEq(t, arenaPointsVector, nil, "new slice can't be empty")
+	{
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector, etalon.StablePointsVector{Points: [3]etalon.
+			Point{
+			{X: 1, Y: 2},
+			{X: 3, Y: 4},
+			{X: 5, Y: 6},
+		}})
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
+			{X: 1, Y: 2},
+			{X: 3, Y: 4},
+			{X: 5, Y: 6},
+		}}}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 1, arenaPointsVector.Len(), "len should be 1")
+		eq(t, 4, arenaPointsVector.Cap(), "cap should be 4")
+	}
+	{
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+				{X: 6, Y: 7},
+			}},
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+				{X: 7, Y: 8},
+			}},
+		)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+				{X: 6, Y: 7},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+				{X: 7, Y: 8},
+			}},
+		}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 3, arenaPointsVector.Len(), "len should be 3")
+		eq(t, 4, arenaPointsVector.Cap(), "cap should be 4")
+	}
+	{
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 0, Y: 1},
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+			}},
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 9, Y: 8},
+				{X: 7, Y: 6},
+				{X: 5, Y: 4},
+			}},
+		)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+				{X: 6, Y: 7},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+				{X: 7, Y: 8},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 0, Y: 1},
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 9, Y: 8},
+				{X: 7, Y: 6},
+				{X: 5, Y: 4},
+			}},
+		}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 5, arenaPointsVector.Len(), "len should be 5")
+		eq(t, true, arenaPointsVector.Cap() >= 5, "cap should be >= 5")
+	}
+	{
 
+		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+			}},
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+			}},
+		)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+				{X: 6, Y: 7},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+				{X: 7, Y: 8},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 0, Y: 1},
+				{X: 2, Y: 3},
+				{X: 4, Y: 5},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 9, Y: 8},
+				{X: 7, Y: 6},
+				{X: 5, Y: 4},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+				{X: 1, Y: 2},
+			}},
+			{Points: [3]etalon.Point{
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+				{X: 2, Y: 3},
+			}},
+		}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 7, arenaPointsVector.Len(), "len should be 7")
+		eq(t, true, arenaPointsVector.Cap() >= 7, "cap should be >= 7")
+	}
+	{
+		arenaPointsVector, allocErr = alloc.Make(1)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
+			{X: 0, Y: 0},
+			{X: 0, Y: 0},
+			{X: 0, Y: 0},
+		}}}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 1, arenaPointsVector.Len(), "len should be 1")
+		eq(t, 1, arenaPointsVector.Cap(), "cap should be 1")
+	}
+}
+
+func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(t *testing.T, view *etalon.StablePointsVectorView) {
+	alloc := view.Slice
+	arenaPointsVector, allocErr := alloc.MakeWithCapacity(0, 4)
+	failOnError(t, allocErr)
+	notEq(t, arenaPointsVector, nil, "new slice can't be empty")
 	{
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector, etalon.StablePointsVector{Points: [3]etalon.Point{
 			{X: 1, Y: 2},
@@ -167,12 +360,7 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 		eq(t, 5, len(arenaPointsVector), "len should be 5")
 		eq(t, true, cap(arenaPointsVector) >= 5, "cap should be >= 5")
 	}
-	if target == nil {
-		return
-	}
 	{
-		_, ptrAllocErr := target.Alloc(1, 1)
-		failOnError(t, ptrAllocErr)
 
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
 			etalon.StablePointsVector{Points: [3]etalon.Point{
@@ -229,7 +417,7 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 		eq(t, true, cap(arenaPointsVector) >= 7, "cap should be >= 7")
 	}
 	{
-		arenaPointsVector, allocErr = alloc.MakeSlice(1)
+		arenaPointsVector, allocErr = alloc.Make(1)
 		failOnError(t, allocErr)
 		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
 			{X: 0, Y: 0},
@@ -242,6 +430,71 @@ func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocat
 	}
 }
 
+func (s *arenaGenAllocationCheckingStand) verifySingleItemAllocation(t *testing.T, view *etalon.StablePointsVectorView) {
+	alloc := view.Ptr
+	{
+		pointsVectorPtr, allocErr := alloc.New()
+		failOnError(t, allocErr)
+		notEq(t, etalon.StablePointsVectorPtr{}, pointsVectorPtr, "must not be eq")
+		eq(t, etalon.StablePointsVector{}, *alloc.ToRef(pointsVectorPtr), "must be eq")
+		eq(t, etalon.StablePointsVector{}, alloc.DeRef(pointsVectorPtr), "must be eq")
+
+		vectorRefFirst := alloc.ToRef(pointsVectorPtr)
+		vectorRefFirst.Points[0].X = 11
+		vectorRefFirst.Points[0].Y = 11
+		vectorRefFirst.Points[1].X = 21
+		vectorRefFirst.Points[1].Y = 21
+		vectorRefFirst.Points[2].X = 13
+		vectorRefFirst.Points[2].Y = 13
+
+		expectedVector := etalon.StablePointsVector{Points: [3]etalon.Point{
+			{X: 11, Y: 11},
+			{X: 21, Y: 21},
+			{X: 13, Y: 13},
+		}}
+		eq(t, expectedVector, *alloc.ToRef(pointsVectorPtr), "should be equal")
+		eq(t, expectedVector, alloc.DeRef(pointsVectorPtr), "should be equal")
+	}
+	{
+		pointsVectorPtr, allocErr := alloc.New()
+		failOnError(t, allocErr)
+		notEq(t, etalon.StablePointsVectorPtr{}, pointsVectorPtr, "must not be eq")
+		eq(t, etalon.StablePointsVector{}, *alloc.ToRef(pointsVectorPtr), "must be eq")
+		eq(t, etalon.StablePointsVector{}, alloc.DeRef(pointsVectorPtr), "must be eq")
+
+		expectedVector := etalon.StablePointsVector{Points: [3]etalon.Point{
+			{X: 11, Y: 11},
+			{X: 21, Y: 21},
+			{X: 13, Y: 13},
+		}}
+		*alloc.ToRef(pointsVectorPtr) = expectedVector
+		eq(t, expectedVector, *alloc.ToRef(pointsVectorPtr), "should be equal")
+		eq(t, expectedVector, alloc.DeRef(pointsVectorPtr), "should be equal")
+	}
+	{
+		initVector := etalon.StablePointsVector{Points: [3]etalon.Point{
+			{X: 44, Y: 44},
+			{X: 65, Y: 32},
+			{X: 65, Y: 32},
+		}}
+		pointsVectorPtr, allocErr := alloc.Embed(initVector)
+		failOnError(t, allocErr)
+		notEq(t, etalon.StablePointsVectorPtr{}, pointsVectorPtr, "must not be eq")
+		eq(t, initVector, *alloc.ToRef(pointsVectorPtr), "must be eq")
+		eq(t, initVector, alloc.DeRef(pointsVectorPtr), "must be eq")
+
+		expectedVector := etalon.StablePointsVector{Points: [3]etalon.Point{
+			{X: 11, Y: 11},
+			{X: 21, Y: 21},
+			{X: 13, Y: 13},
+		}}
+		*alloc.ToRef(pointsVectorPtr) = expectedVector
+		eq(t, expectedVector, *alloc.ToRef(pointsVectorPtr), "should be equal")
+		eq(t, expectedVector, alloc.DeRef(pointsVectorPtr), "should be equal")
+		eq(t, int32(65), initVector.Points[2].X, "should be equal")
+	}
+}
+
 type arenaGenAllocationLimitCheckingStand struct{}
 
 func (s *arenaGenAllocationLimitCheckingStand) check(t *testing.T, target testAllocator) {
@@ -249,37 +502,53 @@ func (s *arenaGenAllocationLimitCheckingStand) check(t *testing.T, target testAl
 	alloc := etalon.NewStablePointsVectorView(target)
 	sizeOfVector := int(unsafe.Sizeof(etalon.StablePointsVector{}))
 	{
-		vector, allocErr := alloc.MakeSlice((target.Metrics().AvailableBytes / sizeOfVector) + 1)
+		vector, allocErr := alloc.Slice.Make((target.Metrics().AvailableBytes / sizeOfVector) + 1)
 		expectErr(t, allocErr)
 		eq(t, true, vector == nil, "vector should be empty")
 		t.Logf("alloc metrics: %+v", target.Metrics())
 	}
 	{
-		vector, allocErr := alloc.MakeSliceWithCapacity(0, (target.Metrics().AvailableBytes/sizeOfVector)+1)
+		vector, allocErr := alloc.Slice.MakeWithCapacity(0, (target.Metrics().AvailableBytes/sizeOfVector)+1)
 		expectErr(t, allocErr)
 		eq(t, true, vector == nil, "vector should be empty")
 		t.Logf("alloc metrics: %+v", target.Metrics())
 	}
 	{
-		vector, allocNoErr := alloc.MakeSliceWithCapacity(0, 1)
+		vector, allocNoErr := alloc.Slice.MakeWithCapacity(0, 1)
 		failOnError(t, allocNoErr)
 		eq(t, true, vector != nil, "vector should be empty")
 
 		toAppend := make([]etalon.StablePointsVector, (target.Metrics().AvailableBytes/sizeOfVector)+1)
-		newVec, allocErr := alloc.Append(vector, toAppend...)
+		newVec, allocErr := alloc.Slice.Append(vector, toAppend...)
 		expectErr(t, allocErr)
 		eq(t, true, newVec == nil, "vector should be empty")
 		t.Logf("alloc metrics: %+v", target.Metrics())
 	}
 	{
-		vector, allocNoErr := alloc.MakeSliceWithCapacity(0, 0)
+		vector, allocNoErr := alloc.Slice.MakeWithCapacity(0, 0)
 		failOnError(t, allocNoErr)
 		eq(t, true, vector != nil, "vector should be empty")
 
 		toAppend := make([]etalon.StablePointsVector, (target.Metrics().AvailableBytes/sizeOfVector)+1)
-		newVec, allocErr := alloc.Append(vector, toAppend...)
+		newVec, allocErr := alloc.Slice.Append(vector, toAppend...)
 		expectErr(t, allocErr)
 		eq(t, true, newVec == nil, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
+
+	vector, allocErr := alloc.Slice.Make(target.Metrics().AvailableBytes / sizeOfVector)
+	failOnError(t, allocErr)
+	notEq(t, nil, vector, "should be nil")
+	{
+		vector, allocErr := alloc.Ptr.New()
+		expectErr(t, allocErr)
+		eq(t, etalon.StablePointsVectorPtr{}, vector, "vector should be empty")
+		t.Logf("alloc metrics: %+v", target.Metrics())
+	}
+	{
+		vector, allocErr := alloc.Ptr.Embed(etalon.StablePointsVector{Points: [3]etalon.Point{{X: 12}}})
+		expectErr(t, allocErr)
+		eq(t, etalon.StablePointsVectorPtr{}, vector, "vector should be empty")
 		t.Logf("alloc metrics: %+v", target.Metrics())
 	}
 }
@@ -298,9 +567,9 @@ func eq(t *testing.T, expected interface{}, actual interface{}, msg string, args
 	if reflect.DeepEqual(expected, actual) {
 		return
 	}
-	t.Errorf("objects are not equal. `%+v` != `%+v`", expected, actual)
-	t.Errorf("exp: `%+v`\n", expected)
-	t.Errorf("act: `%+v`\n", actual)
+	t.Errorf("objects are not equal. %T(`%+v`) != %T(`%+v`)", expected, expected, actual, actual)
+	t.Errorf("exp: %T(`%+v`)\n", expected, expected)
+	t.Errorf("act: %T(`%+v`)\n", actual, actual)
 	t.Errorf(msg, args...)
 	debug.PrintStack()
 	t.FailNow()
