@@ -41,12 +41,12 @@ func TestGeneratorForStablePointsVector(t *testing.T) {
 
 func TestGeneratorForInvalidCirclePtr(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"CirclePtr"}))
+	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"CircleWithPointer"}))
 }
 
 func TestGeneratorForInvalidCircleCirclePtr(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"CircleCirclePtr"}))
+	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"EmbeddedCircleWithPointer"}))
 }
 
 func TestGeneratorForInvalidCoordinates(t *testing.T) {
@@ -61,7 +61,7 @@ func TestGeneratorForInvalidPointsVector(t *testing.T) {
 
 func TestGeneratorForInvalidFixedCircleCirclePtrVector(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"FixedCircleCirclePtrVector"}))
+	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"FixedEmbeddedCircleWithPointerVector"}))
 }
 
 func compareOutputFiles(t *testing.T, targetType string) {

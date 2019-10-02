@@ -27,16 +27,16 @@ type CircleColor struct {
 	Color uint64
 }
 
-type CirclePtr struct {
+type CircleWithPointer struct {
 	c     *Circle
 	Color uint64
 }
 
-type CircleCirclePtr struct {
-	cp    CirclePtr
+type EmbeddedCircleWithPointer struct {
+	cp    CircleWithPointer
 	Color uint64
 }
 
-type FixedCircleCirclePtrVector struct {
-	circles [3]CircleCirclePtr
+type FixedEmbeddedCircleWithPointerVector struct {
+	circles [3]EmbeddedCircleWithPointer
 }
