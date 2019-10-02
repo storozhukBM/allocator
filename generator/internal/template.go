@@ -9,9 +9,10 @@ package {{.PkgName}}
 {{$ttName := .TargetTypeName}}
 
 import (
-	"github.com/storozhukBM/allocator/lib/arena"
 	"reflect"
 	"unsafe"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type internal{{.TypeNameWithUpperFirstLetter}}Allocator interface {

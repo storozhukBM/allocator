@@ -11,7 +11,7 @@ import (
 	"github.com/storozhukBM/allocator/lib/arena"
 )
 
-const bytesRequiredForBasicTest = 580
+const bytesRequiredForBasicTest = 1184
 
 func TestUninitializedAlloc(t *testing.T) {
 	t.Parallel()
@@ -22,6 +22,15 @@ func TestUninitializedAlloc(t *testing.T) {
 func TestSimpleArenaWithoutConstructor(t *testing.T) {
 	t.Parallel()
 	a := &arena.GenericAllocator{}
+	s := &arenaGenAllocationCheckingStand{}
+	s.check(t, a)
+	t.Logf("alloc metrics: %+v", a.Metrics())
+}
+
+func TestSimpleArenaWithVerySmallInitialCapacity(t *testing.T) {
+	t.Parallel()
+	a := arena.NewGenericAllocator(arena.Options{InitialCapacity: 12})
+
 	s := &arenaGenAllocationCheckingStand{}
 	s.check(t, a)
 	t.Logf("alloc metrics: %+v", a.Metrics())
@@ -82,12 +91,15 @@ type arenaGenAllocationCheckingStand struct{}
 
 func (s *arenaGenAllocationCheckingStand) check(t *testing.T, target testAllocator) {
 	alloc := etalon.NewStablePointsVectorView(target)
-	s.verifySliceAlloc(t, alloc)
-	s.verifyBufferAlloc(t, alloc)
+	s.verifySliceAlloc(t, target, alloc)
+	s.verifyBufferAlloc(t, target, alloc)
 	s.verifySingleItemAllocation(t, alloc)
 }
 
-func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(t *testing.T, view *etalon.StablePointsVectorView) {
+func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(
+	t *testing.T, target testAllocator,
+	view *etalon.StablePointsVectorView,
+) {
 	alloc := view.Buffer
 	arenaPointsVector, allocErr := alloc.MakeWithCapacity(0, 4)
 	failOnError(t, allocErr)
@@ -189,7 +201,14 @@ func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(t *testing.T, view *
 		eq(t, 5, arenaPointsVector.Len(), "len should be 5")
 		eq(t, true, arenaPointsVector.Cap() >= 5, "cap should be >= 5")
 	}
+	if target == nil {
+		return
+	}
 	{
+		// This call required to disable "subsequent allocations" optimisation
+		// and observe actual reallocation of the whole buffer
+		_, ptrAllocErr := target.Alloc(1, 1)
+		failOnError(t, ptrAllocErr)
 
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
 			etalon.StablePointsVector{Points: [3]etalon.Point{
@@ -259,7 +278,10 @@ func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(t *testing.T, view *
 	}
 }
 
-func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(t *testing.T, view *etalon.StablePointsVectorView) {
+func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(
+	t *testing.T, target testAllocator,
+	view *etalon.StablePointsVectorView,
+) {
 	alloc := view.Slice
 	arenaPointsVector, allocErr := alloc.MakeWithCapacity(0, 4)
 	failOnError(t, allocErr)
@@ -360,7 +382,14 @@ func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(t *testing.T, view *e
 		eq(t, 5, len(arenaPointsVector), "len should be 5")
 		eq(t, true, cap(arenaPointsVector) >= 5, "cap should be >= 5")
 	}
+	if target == nil {
+		return
+	}
 	{
+		// This call required to disable "subsequent allocations" optimisation
+		// and observe actual reallocation of the whole slice
+		_, ptrAllocErr := target.Alloc(1, 1)
+		failOnError(t, ptrAllocErr)
 
 		arenaPointsVector, allocErr = alloc.Append(arenaPointsVector,
 			etalon.StablePointsVector{Points: [3]etalon.Point{

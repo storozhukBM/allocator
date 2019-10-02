@@ -1,9 +1,10 @@
 package etalon
 
 import (
-	"github.com/storozhukBM/allocator/lib/arena"
 	"reflect"
 	"unsafe"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type internalCircleColorAllocator interface {
@@ -12,31 +13,100 @@ type internalCircleColorAllocator interface {
 	Metrics() arena.Metrics
 }
 
+type CircleColorPtr struct {
+	ptr arena.Ptr
+}
+
+type CircleColorBuffer struct {
+	data arena.Ptr
+	len  int
+	cap  int
+}
+
+func (s CircleColorBuffer) Len() int {
+	return s.len
+}
+
+func (s CircleColorBuffer) Cap() int {
+	return s.cap
+}
+
 type CircleColorView struct {
-	alloc            internalCircleColorAllocator
-	lastAllocatedPtr arena.Ptr
+	Ptr    internalCircleColorPtrView
+	Slice  internalCircleColorSliceView
+	Buffer internalCircleColorBufferView
 }
 
 func NewCircleColorView(alloc internalCircleColorAllocator) *CircleColorView {
 	if alloc == nil {
-		return &CircleColorView{alloc: &arena.GenericAllocator{}}
+		state := internalCircleColorState{alloc: &arena.GenericAllocator{}}
+		return &CircleColorView{
+			Ptr:    internalCircleColorPtrView{state: state},
+			Slice:  internalCircleColorSliceView{state: state},
+			Buffer: internalCircleColorBufferView{state: state},
+		}
 	}
-	return &CircleColorView{alloc: alloc}
+	state := internalCircleColorState{alloc: alloc}
+	return &CircleColorView{
+		Ptr:    internalCircleColorPtrView{state: state},
+		Slice:  internalCircleColorSliceView{state: state},
+		Buffer: internalCircleColorBufferView{state: state},
+	}
 }
 
-func (s *CircleColorView) MakeSlice(len int) ([]CircleColor, error) {
-	sliceHdr, allocErr := s.makeSlice(len)
+type internalCircleColorPtrView struct {
+	state internalCircleColorState
+}
+
+func (s *internalCircleColorPtrView) New() (CircleColorPtr, error) {
+	slice, allocErr := s.state.makeSlice(1)
+	if allocErr != nil {
+		return CircleColorPtr{}, allocErr
+	}
+	ptr := CircleColorPtr{ptr: slice.data}
+	return ptr, nil
+}
+
+func (s *internalCircleColorPtrView) Embed(value CircleColor) (CircleColorPtr, error) {
+	slice, allocErr := s.state.makeSlice(1)
+	if allocErr != nil {
+		return CircleColorPtr{}, allocErr
+	}
+	valueInPool := (*CircleColor)(s.state.alloc.ToRef(slice.data))
+	*valueInPool = value
+	ptr := CircleColorPtr{ptr: slice.data}
+	return ptr, nil
+}
+
+func (s *internalCircleColorPtrView) DeRef(allocPtr CircleColorPtr) CircleColor {
+	ref := s.state.alloc.ToRef(allocPtr.ptr)
+	valuePtr := (*CircleColor)(ref)
+	return *valuePtr
+}
+
+func (s *internalCircleColorPtrView) ToRef(allocPtr CircleColorPtr) *CircleColor {
+	ref := s.state.alloc.ToRef(allocPtr.ptr)
+	valuePtr := (*CircleColor)(ref)
+	return valuePtr
+}
+
+type internalCircleColorSliceView struct {
+	state internalCircleColorState
+}
+
+func (s *internalCircleColorSliceView) Make(len int) ([]CircleColor, error) {
+	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
 		return nil, allocErr
 	}
 	return *(*[]CircleColor)(unsafe.Pointer(sliceHdr)), nil
 }
 
-func (s *CircleColorView) MakeSliceWithCapacity(length int, capacity int) ([]CircleColor, error) {
+func (s *internalCircleColorSliceView) MakeWithCapacity(length int, capacity int) ([]CircleColor, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
 	}
-	sliceHdr, allocErr := s.makeSlice(capacity)
+	sliceHdr, allocErr := s.makeGoSlice(capacity)
 	if allocErr != nil {
 		return nil, allocErr
 	}
@@ -44,7 +114,7 @@ func (s *CircleColorView) MakeSliceWithCapacity(length int, capacity int) ([]Cir
 	return *(*[]CircleColor)(unsafe.Pointer(sliceHdr)), nil
 }
 
-func (s *CircleColorView) Append(slice []CircleColor, elemsToAppend ...CircleColor) ([]CircleColor, error) {
+func (s *internalCircleColorSliceView) Append(slice []CircleColor, elemsToAppend ...CircleColor) ([]CircleColor, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
 		return nil, allocErr
@@ -55,7 +125,7 @@ func (s *CircleColorView) Append(slice []CircleColor, elemsToAppend ...CircleCol
 	return result, nil
 }
 
-func (s *CircleColorView) growIfNecessary(slice []CircleColor, requiredLen int) (*reflect.SliceHeader, error) {
+func (s *internalCircleColorSliceView) growIfNecessary(slice []CircleColor, requiredLen int) (*reflect.SliceHeader, error) {
 	var tVar CircleColor
 	tSize := unsafe.Sizeof(tVar)
 	requiredSizeInBytes := requiredLen * int(tSize)
@@ -66,17 +136,17 @@ func (s *CircleColorView) growIfNecessary(slice []CircleColor, requiredLen int) 
 	}
 
 	emptyPtr := arena.Ptr{}
-	if s.lastAllocatedPtr != emptyPtr && sliceHdr.Data == uintptr(s.alloc.ToRef(s.lastAllocatedPtr)) {
-		nextPtr, probeAllocErr := s.alloc.Alloc(0, 1)
+	if s.state.lastAllocatedPtr != emptyPtr && sliceHdr.Data == uintptr(s.state.alloc.ToRef(s.state.lastAllocatedPtr)) {
+		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)
 		if probeAllocErr != nil {
 			return nil, probeAllocErr
 		}
 		// current allocation offset is the same as previous
 		// we can try to just enhance current buffer
-		nextPtrAddr := uintptr(s.alloc.ToRef(nextPtr))
+		nextPtrAddr := uintptr(s.state.alloc.ToRef(nextPtr))
 		nextAllocationIsRightAfterTargetSlice := nextPtrAddr == sliceHdr.Data+(uintptr(sliceHdr.Cap)*tSize)
-		if nextAllocationIsRightAfterTargetSlice && s.alloc.Metrics().AvailableBytes >= requiredSizeInBytes {
-			_, enhancingErr := s.alloc.Alloc(uintptr(requiredSizeInBytes), 1)
+		if nextAllocationIsRightAfterTargetSlice && s.state.alloc.Metrics().AvailableBytes >= requiredSizeInBytes {
+			_, enhancingErr := s.state.alloc.Alloc(uintptr(requiredSizeInBytes), 1)
 			if enhancingErr != nil {
 				return nil, enhancingErr
 			}
@@ -84,7 +154,7 @@ func (s *CircleColorView) growIfNecessary(slice []CircleColor, requiredLen int) 
 			return sliceHdr, nil
 		}
 	}
-	newDstSlice, allocErr := s.makeSlice(2 * (int(sliceHdr.Cap) + requiredLen))
+	newDstSlice, allocErr := s.makeGoSlice(2 * (int(sliceHdr.Cap) + requiredLen))
 	if allocErr != nil {
 		return nil, allocErr
 	}
@@ -93,20 +163,130 @@ func (s *CircleColorView) growIfNecessary(slice []CircleColor, requiredLen int) 
 	return newDstSlice, nil
 }
 
-func (s *CircleColorView) makeSlice(len int) (*reflect.SliceHeader, error) {
-	var tVar CircleColor
-	tSize := unsafe.Sizeof(tVar)
-	tAlignment := unsafe.Alignof(tVar)
-	slicePtr, allocErr := s.alloc.Alloc(uintptr(len)*tSize, tAlignment)
+func (s *internalCircleColorSliceView) makeGoSlice(len int) (*reflect.SliceHeader, error) {
+	valueSlice, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
 		return nil, allocErr
 	}
-	s.lastAllocatedPtr = slicePtr
-	sliceRef := s.alloc.ToRef(slicePtr)
+	sliceRef := s.state.alloc.ToRef(valueSlice.data)
 	sliceHdr := reflect.SliceHeader{
 		Data: uintptr(sliceRef),
 		Len:  len,
 		Cap:  len,
 	}
 	return &sliceHdr, nil
+}
+
+type internalCircleColorBufferView struct {
+	state internalCircleColorState
+}
+
+func (s *internalCircleColorBufferView) Make(len int) (CircleColorBuffer, error) {
+	sliceHdr, allocErr := s.state.makeSlice(len)
+	if allocErr != nil {
+		return CircleColorBuffer{}, allocErr
+	}
+	return sliceHdr, nil
+}
+
+func (s *internalCircleColorBufferView) MakeWithCapacity(length int,
+	capacity int) (CircleColorBuffer, error) {
+	if capacity < length {
+		return CircleColorBuffer{}, arena.AllocationInvalidArgumentError
+	}
+	sliceHdr, allocErr := s.state.makeSlice(capacity)
+	if allocErr != nil {
+		return CircleColorBuffer{}, allocErr
+	}
+	sliceHdr.len = length
+	return sliceHdr, nil
+}
+
+func (s *internalCircleColorBufferView) Append(
+	slice CircleColorBuffer,
+	elemsToAppend ...CircleColor,
+) (CircleColorBuffer, error) {
+
+	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
+	if allocErr != nil {
+		return CircleColorBuffer{}, allocErr
+	}
+	target.len = slice.len + len(elemsToAppend)
+	result := s.ToRef(target)
+	copy(result[slice.len:], elemsToAppend)
+	return target, nil
+}
+
+func (s *internalCircleColorBufferView) ToRef(slice CircleColorBuffer) []CircleColor {
+	dataRef := s.state.alloc.ToRef(slice.data)
+	sliceHdr := reflect.SliceHeader{
+		Data: uintptr(dataRef),
+		Len:  slice.len,
+		Cap:  slice.cap,
+	}
+	return *(*[]CircleColor)(unsafe.Pointer(&sliceHdr))
+}
+
+func (s *internalCircleColorBufferView) growIfNecessary(
+	slice CircleColorBuffer,
+	requiredLen int,
+) (CircleColorBuffer, error) {
+	var tVar CircleColor
+	tSize := unsafe.Sizeof(tVar)
+	requiredSizeInBytes := requiredLen * int(tSize)
+	availableSizeInBytes := int(slice.cap-slice.len) * int(tSize)
+	if availableSizeInBytes >= requiredSizeInBytes {
+		return slice, nil
+	}
+
+	emptyPtr := arena.Ptr{}
+	if s.state.lastAllocatedPtr != emptyPtr && slice.data == s.state.lastAllocatedPtr {
+		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)
+		if probeAllocErr != nil {
+			return CircleColorBuffer{}, probeAllocErr
+		}
+		// current allocation offset is the same as previous
+		// we can try to just enhance current buffer
+		sliceDataAddr := uintptr(s.state.alloc.ToRef(slice.data))
+		nextPtrAddr := uintptr(s.state.alloc.ToRef(nextPtr))
+		nextAllocationIsRightAfterTargetSlice := nextPtrAddr == sliceDataAddr+(uintptr(slice.cap)*tSize)
+		if nextAllocationIsRightAfterTargetSlice && s.state.alloc.Metrics().AvailableBytes >= requiredSizeInBytes {
+			_, enhancingErr := s.state.alloc.Alloc(uintptr(requiredSizeInBytes), 1)
+			if enhancingErr != nil {
+				return CircleColorBuffer{}, enhancingErr
+			}
+			slice.cap += requiredLen
+			return slice, nil
+		}
+	}
+	newDstSlice, allocErr := s.state.makeSlice(2 * (int(slice.cap) + requiredLen))
+	if allocErr != nil {
+		return CircleColorBuffer{}, allocErr
+	}
+	dst := s.ToRef(newDstSlice)
+	prev := s.ToRef(slice)
+	copy(dst, prev)
+	return newDstSlice, nil
+}
+
+type internalCircleColorState struct {
+	alloc            internalCircleColorAllocator
+	lastAllocatedPtr arena.Ptr
+}
+
+func (s *internalCircleColorState) makeSlice(len int) (CircleColorBuffer, error) {
+	var tVar CircleColor
+	tSize := unsafe.Sizeof(tVar)
+	tAlignment := unsafe.Alignof(tVar)
+	slicePtr, allocErr := s.alloc.Alloc(uintptr(len)*tSize, tAlignment)
+	if allocErr != nil {
+		return CircleColorBuffer{}, allocErr
+	}
+	s.lastAllocatedPtr = slicePtr
+	sliceHdr := CircleColorBuffer{
+		data: slicePtr,
+		len:  len,
+		cap:  len,
+	}
+	return sliceHdr, nil
 }
