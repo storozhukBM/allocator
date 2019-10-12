@@ -3,10 +3,11 @@ package arena_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/storozhukBM/allocator/lib/arena"
 	"math/rand"
 	"strconv"
 	"testing"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type arenaByteBufferAllocationCheckingStand struct{}

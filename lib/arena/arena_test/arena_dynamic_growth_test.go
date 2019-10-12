@@ -2,12 +2,13 @@ package arena_test
 
 import (
 	"encoding/json"
-	"github.com/storozhukBM/allocator/lib/arena"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"testing"
 	"unsafe"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type arenaDynamicGrowthStand struct{}

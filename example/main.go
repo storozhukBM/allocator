@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/storozhukBM/allocator/lib/arena"
 	"reflect"
 	"time"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 func main() {

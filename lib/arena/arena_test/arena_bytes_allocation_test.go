@@ -2,8 +2,9 @@ package arena_test
 
 import (
 	"bytes"
-	"github.com/storozhukBM/allocator/lib/arena"
 	"testing"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 const requiredBytesForBytesAllocationTest = 64

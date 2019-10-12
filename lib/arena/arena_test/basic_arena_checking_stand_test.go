@@ -1,10 +1,11 @@
 package arena_test
 
 import (
-	"github.com/storozhukBM/allocator/lib/arena"
 	"runtime"
 	"testing"
 	"unsafe"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 const requiredBytesForBasicTest = 128
