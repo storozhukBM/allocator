@@ -14,8 +14,8 @@ import (
 //
 // All critical path methods like `Alloc` and `ToRef` are designed to be inalienable.
 //
-// General advice would be to use other more high-level implementations available in this library
-// and refer to this one only if you really need to,
+// General advice would be to use other more high-level implementations like arena.GenericAllocator,
+// available in this library, and refer to this one only if you really need to,
 // and you understand all its caveats and potentially unsafe behavior.
 type RawAllocator struct {
 	buffer []byte
@@ -77,15 +77,25 @@ func (a *RawAllocator) ToRef(p Ptr) unsafe.Pointer {
 	return unsafe.Pointer(&a.buffer[targetOffset])
 }
 
+// CurrentOffset returns the current allocation offset.
+// This method can be primarily used to build other allocators on top of arena.RawAllocator.
 func (a *RawAllocator) CurrentOffset() Offset {
 	return Offset{p: Ptr{offset: uint32(a.offset)}}
 }
 
+// Clear fills the underlying buffer with zeros and moves offset to zero.
+//
+// It can be a potentially unsafe operation if you try to dereference and/or use arena.Ptr
+// that was allocated before the call to Clear method.
+// To avoid such situation please refer to other allocator implementations from this library
+// that provide additional safety checks.
 func (a *RawAllocator) Clear() {
 	clearBytes(a.buffer)
 	a.offset = 0
 }
 
+// Metrics provides a snapshot of current allocation statistics,
+// that can be used by end-users or other allocators for introspection.
 func (a *RawAllocator) Metrics() Metrics {
 	return Metrics{
 		UsedBytes:                a.offset,
@@ -96,6 +106,7 @@ func (a *RawAllocator) Metrics() Metrics {
 	}
 }
 
+// String provides a string snapshot of the current allocation offset.
 func (a *RawAllocator) String() string {
 	return fmt.Sprintf("rowarena{%v}", a.CurrentOffset())
 }
