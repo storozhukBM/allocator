@@ -17,6 +17,7 @@ First Release scope
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
+1. mention thread safety in documentation, and share of arena allocated resources between goroutines
 
 Second Release
 1. instrumented arena
