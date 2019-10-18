@@ -18,6 +18,9 @@ First Release scope
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
 1. mention thread safety in documentation, and share of arena allocated resources between goroutines
+1. make sure that Append works on top of "empty" slices
+1. add sub-slicing to the generated code and arena.Bytes
+1. documentation for the generated code
 
 Second Release
 1. instrumented arena
