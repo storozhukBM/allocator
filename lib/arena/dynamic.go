@@ -85,7 +85,7 @@ func (a *DynamicAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 // This method performs bounds check, so it can panic if you pass an arena.Ptr
 // allocated by different arena with internal offset bigger than the underlying buffer.
 //
-// Also, this RawAllocator.ToRef has protection and can panic if you try to convert arena.Ptr
+// Also, this DynamicAllocator.ToRef has protection and can panic if you try to convert arena.Ptr
 // that was allocated by other arena, this is done by comparison of arena.Ptr.arenaMask fields.
 //
 // We'd suggest calling this method right before using the result pointer to eliminate its visibility scope
@@ -119,7 +119,6 @@ func (a *DynamicAllocator) CurrentOffset() Offset {
 // but it can't catch usages of already converted values.
 // To avoid such situations, we'd suggest calling this method right before using the result pointer to eliminate its
 // visibility scope and potentially prevent it's escaping to the heap.
-// String provides a string snapshot of the current allocation offset.
 func (a *DynamicAllocator) Clear() {
 	if len(a.currentArena.buffer) > 0 {
 		a.currentArena.Clear()
