@@ -1,8 +1,11 @@
 package arena_test
 
 import (
-	"github.com/storozhukBM/allocator/lib/arena"
+	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 func TestUninitializedBytesBuffer(t *testing.T) {
@@ -294,6 +297,7 @@ func TestDynamicArena(t *testing.T) {
 
 func TestRawArena(t *testing.T) {
 	t.Parallel()
+
 	a := arena.NewRawAllocator(requiredBytesForBasicTest + 8)
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
@@ -322,4 +326,32 @@ func TestRawArena(t *testing.T) {
 	bytesAllocationLimitsStand.check(t, forLimits)
 	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
 	bufferAllocationLimitStand.check(t, forLimits)
+}
+
+func TestWrongOffsetToRef(t *testing.T) {
+	recoveryHappened := false
+	func() {
+		defer func() {
+			p := recover()
+			assert(p != nil, "p can't be nil")
+			assert(
+				strings.Contains(fmt.Sprintf("%v", p), "index out of range"),
+				"index check should fail the execution",
+			)
+			recoveryHappened = true
+		}()
+		bigAlloc := arena.NewRawAllocator(64)
+		smallAlloc := arena.NewRawAllocator(32)
+
+		_, allocErr := bigAlloc.Alloc(33, 1)
+		failOnError(t, allocErr)
+
+		ptrFromBig, allocErr := bigAlloc.Alloc(1, 1)
+		failOnError(t, allocErr)
+
+		_ = smallAlloc.ToRef(ptrFromBig)
+		assert(false, "this point should be unreachable due to panic")
+	}()
+
+	assert(recoveryHappened, "recovery should happen")
 }

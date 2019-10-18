@@ -2,10 +2,11 @@ package arena_test
 
 import (
 	"fmt"
-	"github.com/storozhukBM/allocator/lib/arena"
 	"runtime/debug"
 	"testing"
 	"unsafe"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type allocator interface {

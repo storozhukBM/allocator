@@ -1,11 +1,23 @@
 # arena
 Primitive arena allocator
 
+Build targets
+```
+go run ./make/internal -h
+```
+
+Test
+```
+go run ./make/internal test
+```
+
 TODO:
 First Release scope
+1. make an option to clean a underlying arena during clear in Generic allocator.
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
+1. mention thread safety in documentation, and share of arena allocated resources between goroutines
 
 Second Release
 1. instrumented arena
@@ -37,8 +49,3 @@ Done:
     1. Arena string allocation option from passed []byte
     1. Optimization of append to consecutive byte slices where we try to fit allocation in currently available buffer
 1. Code generation - take into account the observability of specified structure
-
-Test
-```
-go run ./make/internal test
-```

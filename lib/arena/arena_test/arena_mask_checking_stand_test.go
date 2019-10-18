@@ -1,8 +1,9 @@
 package arena_test
 
 import (
-	"github.com/storozhukBM/allocator/lib/arena"
 	"testing"
+
+	"github.com/storozhukBM/allocator/lib/arena"
 )
 
 type arenaMaskCheckingStand struct {
