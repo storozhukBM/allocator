@@ -21,6 +21,7 @@ First Release scope
 1. make sure that Append works on top of "empty" slices
 1. add sub-slicing to the generated code and arena.Bytes
 1. documentation for the generated code
+1. tests with '-d=checkptr'
 
 Second Release
 1. instrumented arena

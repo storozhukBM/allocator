@@ -4,33 +4,66 @@ import (
 	"fmt"
 )
 
+// Error type used by the library to declare error constants.
 type Error string
 
+// Error method that implements error interface.
 func (e Error) Error() string {
 	return string(e)
 }
 
+// AllocationLimitError typically returned if
+// allocator can afford the requested allocation.
 const AllocationLimitError = Error("allocation limit")
+
+// AllocationInvalidArgumentError typically returned if
+// you passed an invalid argument to the allocation method.
 const AllocationInvalidArgumentError = Error("allocation argument is invalid")
 
+//Bytes is an analog to []byte, but it represents a byte slice allocated inside one of the arenas.
+//arena.Bytes is a simple struct that should be passed by value and
+//is not considered by Go runtime as a legit pointer type.
+//So the GC can skip it during the concurrent mark phase.
+//
+//arena.Bytes can be converted to []byte by using arena.BytesView.BytesToRef method,
+//but we'd suggest to do it right before use to eliminate its visibility scope
+//and potentially prevent it's escaping to the heap.
+//If you want to move a certain arena.Bytes out of arena to the general heap you can use
+//arena.BytesView.CopyBytesToHeap method.
+//
+//arena.Bytes also can be used to represent strings allocated inside arena and converted
+//to string using arena.BytesView.BytesToStringRef or arena.BytesView.CopyBytesToStringOnHeap.
 type Bytes struct {
 	data Ptr
 	len  uintptr
 	cap  uintptr
 }
 
+// String provides a string snapshot of the current arena.Bytes header.
 func (b Bytes) String() string {
 	return fmt.Sprintf("{data: %v len: %v cap: %v}", b.data, b.len, b.cap)
 }
 
+// Len returns the length of the arena.Bytes. Direct analog of len([]byte)
 func (b Bytes) Len() int {
 	return int(b.len)
 }
 
+// Cap returns the capacity of the arena.Bytes. Direct analog of cap([]byte)
 func (b Bytes) Cap() int {
 	return int(b.cap)
 }
 
+// Ptr is a struct, which is basically represents an offset of the allocated value
+// inside one of the arenas.
+//
+// arena.Ptr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type Ptr struct {
 	offset    uint32
 	bucketIdx uint8
@@ -38,26 +71,36 @@ type Ptr struct {
 	arenaMask uint16
 }
 
+// String provides a string snapshot of the current arena.Ptr.
 func (p Ptr) String() string {
 	return fmt.Sprintf("{mask: %v bucketIdx: %v offset: %v}", p.arenaMask, p.bucketIdx, p.offset)
 }
 
+//Offset is a arena.Ptr that can't be converted to unsafe.Pointer
+//or used as any kind of reference.
+//
+//This struct can be primarily used to build other allocators on top of low-level arenas
+//and can help to pre-calculate resulting padding or offset before performing the actual allocation.
 type Offset struct {
 	p Ptr
 }
 
+// String provides a string snapshot of the current arena.Offset.
 func (o Offset) String() string {
 	return o.p.String()
 }
 
+// Metrics is a struct that represents a snapshot of current allocation statistics,
+// that can be used by end-users or other allocators for introspection.
 type Metrics struct {
-	UsedBytes                int
-	AvailableBytes           int
-	AllocatedBytes           int
-	MaxCapacity              int
-	CountOfOnHeapAllocations int
+	UsedBytes                int // count of bytes actually allocated and used inside an arena
+	AvailableBytes           int // count of bytes that are reserved from the general heap, but aren't used
+	AllocatedBytes           int // count of bytes that are allocated inside the general heap
+	MaxCapacity              int // count of bytes that potentially can be allocated using specific arena
+	CountOfOnHeapAllocations int // count of allocations performed inside the general heap
 }
 
+// String provides a string snapshot of the Metrics state.
 func (p Metrics) String() string {
 	return fmt.Sprintf(
 		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfOnHeapAllocations %v}",
