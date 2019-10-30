@@ -13,6 +13,7 @@ go run ./make/internal test
 
 TODO:
 First Release scope
+1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
 1. make an option to clean a underlying arena during clear in Generic allocator.
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)

@@ -20,40 +20,6 @@ const AllocationLimitError = Error("allocation limit")
 // you passed an invalid argument to the allocation method.
 const AllocationInvalidArgumentError = Error("allocation argument is invalid")
 
-//Bytes is an analog to []byte, but it represents a byte slice allocated inside one of the arenas.
-//arena.Bytes is a simple struct that should be passed by value and
-//is not considered by Go runtime as a legit pointer type.
-//So the GC can skip it during the concurrent mark phase.
-//
-//arena.Bytes can be converted to []byte by using arena.BytesView.BytesToRef method,
-//but we'd suggest to do it right before use to eliminate its visibility scope
-//and potentially prevent it's escaping to the heap.
-//If you want to move a certain arena.Bytes out of arena to the general heap you can use
-//arena.BytesView.CopyBytesToHeap method.
-//
-//arena.Bytes also can be used to represent strings allocated inside arena and converted
-//to string using arena.BytesView.BytesToStringRef or arena.BytesView.CopyBytesToStringOnHeap.
-type Bytes struct {
-	data Ptr
-	len  uintptr
-	cap  uintptr
-}
-
-// String provides a string snapshot of the current arena.Bytes header.
-func (b Bytes) String() string {
-	return fmt.Sprintf("{data: %v len: %v cap: %v}", b.data, b.len, b.cap)
-}
-
-// Len returns the length of the arena.Bytes. Direct analog of len([]byte)
-func (b Bytes) Len() int {
-	return int(b.len)
-}
-
-// Cap returns the capacity of the arena.Bytes. Direct analog of cap([]byte)
-func (b Bytes) Cap() int {
-	return int(b.cap)
-}
-
 // Ptr is a struct, which is basically represents an offset of the allocated value
 // inside one of the arenas.
 //

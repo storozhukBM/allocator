@@ -1,7 +1,14 @@
 package main
 
+import (
+	"runtime"
+	"strconv"
+)
+
 const CoverageName = `coverage.out`
 const CodeGenerationToolName = `allocgen`
+
+var Parallelism = strconv.Itoa(runtime.NumCPU() * 4)
 
 var B = NewBuild(BuildOptions{})
 var Commands = []Command{
@@ -44,14 +51,14 @@ func generateTestAllocator() {
 
 func testLib() {
 	defer forceClean()
-	B.Run(Go, `test`, `./lib/...`)
+	B.Run(Go, `test`, `-parallel`, Parallelism, `./lib/...`)
 	generateTestAllocator()
-	B.Run(Go, `test`, `./generator/internal/testdata/testdata_test/...`)
+	B.Run(Go, `test`, `-parallel`, Parallelism, `./generator/internal/testdata/testdata_test/...`)
 }
 
 func testCodeGen() {
 	defer forceClean()
-	B.Run(Go, `test`, `./generator/...`)
+	B.Run(Go, `test`, `-parallel`, Parallelism, `./generator/...`)
 }
 
 func clean() {

@@ -16,6 +16,8 @@ func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allo
 	value := generateRandomValue()
 	for i := 0; i < 15; i++ {
 		arenaBuf := arena.NewBuffer(target)
+		assert(arenaBuf.Len() == 0, "expect initial len to be 0")
+		assert(arenaBuf.Cap() == 0, "expect initial cap to be 0")
 		{
 			encoder := json.NewEncoder(arenaBuf)
 			for j := 0; j < 100; j++ {
@@ -35,22 +37,31 @@ func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allo
 	}
 	{
 		buf := arena.NewBuffer(target)
-
+		assert(buf.Len() == 0, "expect initial len to be 0")
+		assert(buf.Cap() == 0, "expect initial cap to be 0")
 		n, allocErr := buf.WriteString("hello")
 		failOnError(t, allocErr)
 		assert(n == 5, "expect 5 bytes: %+v", n)
+		assert(buf.Len() == 5, "expect len to be 5")
+		assert(buf.Cap() >= 5, "expect cap to be >= 5")
 
 		allocErr = buf.WriteByte(' ')
 		failOnError(t, allocErr)
+		assert(buf.Len() == 6, "expect len to be 6")
+		assert(buf.Cap() >= 6, "expect cap to be >= 6")
 
 		n, allocErr = buf.Write([]byte("sailor"))
 		failOnError(t, allocErr)
 		assert(n == 6, "expect 6 bytes: %+v", n)
+		assert(buf.Len() == 12, "expect len to be 12")
+		assert(buf.Cap() >= 12, "expect cap to be >= 12")
 
 		assert(bytes.Equal(buf.Bytes(), []byte("hello sailor")), "not expected bytes state: %+v", buf.Bytes())
 		assert(bytes.Equal(buf.CopyBytesToHeap(), []byte("hello sailor")), "not expected bytes state: %+v", buf.CopyBytesToHeap())
 		assert(buf.String() == "hello sailor", "not expected bytes state: %+v", buf.String())
 		assert(buf.CopyBytesToStringOnHeap() == "hello sailor", "not expected bytes state: %+v", buf.CopyBytesToStringOnHeap())
+		assert(buf.Len() == 12, "expect len to be 12")
+		assert(buf.Cap() >= 12, "expect cap to be >= 12")
 	}
 }
 

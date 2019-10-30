@@ -329,6 +329,8 @@ func TestRawArena(t *testing.T) {
 }
 
 func TestWrongOffsetToRef(t *testing.T) {
+	t.Parallel()
+
 	recoveryHappened := false
 	func() {
 		defer func() {
