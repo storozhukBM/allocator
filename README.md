@@ -25,6 +25,7 @@ First Release scope
 1. tests with '-d=checkptr'
 
 Second Release
+1. arena map on top of linear hashing alg
 1. instrumented arena
 1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)
 1. close arena function
