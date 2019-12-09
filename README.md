@@ -1,4 +1,4 @@
-# arena
+# allocator. WIP. This library is under construction.
 Primitive arena allocator
 
 Build targets
