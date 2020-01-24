@@ -157,18 +157,7 @@ func (b *Build) Build(args []string) {
 		return
 	}
 
-	if len(args) == 0 {
-		for _, cmd := range b.commandsRegistrationOrd {
-			b.currentTarget = cmd
-			b.commands[cmd]()
-			if len(b.buildErrors) > 0 {
-				b.printAllErrorsAndExit()
-			}
-		}
-		return
-	}
-
-	if args[0] == "-h" {
+	if len(args) == 0 || args[0] == "-h" {
 		b.printAvailableTargets()
 		return
 	}
@@ -181,11 +170,11 @@ func (b *Build) Build(args []string) {
 	for _, cmd := range args {
 		if _, ok := b.commands[cmd]; !ok {
 			b.printAvailableTargets()
-			fmt.Printf("can't find such command as: `%v`\n", cmd)
-			fmt.Println("can't execute build")
-			os.Exit(-1)
+			b.buildErrors = append(b.buildErrors, fmt.Errorf("can't find such command as: `%v`", cmd))
+			b.printAllErrorsAndExit()
 		}
 	}
+
 	for _, cmd := range args {
 		b.currentTarget = cmd
 		b.printCurrentCommand()
@@ -196,23 +185,24 @@ func (b *Build) Build(args []string) {
 	}
 }
 
-func (b *Build) printAvailableTargets() {
-	fmt.Printf("available targets:\n")
-	for _, cmd := range b.commandsRegistrationOrd {
-		fmt.Printf("%+v\n", cmd)
-	}
-}
-
 const blue = "\u001b[36m"
+const red = "\u001b[31m"
 const reset = "\u001b[0m"
 
 func (b *Build) printCurrentCommand() {
 	fmt.Println(blue + "[" + b.currentTarget + "]" + reset)
 }
 
+func (b *Build) printAvailableTargets() {
+	fmt.Printf("available targets:\n")
+	for _, cmd := range b.commandsRegistrationOrd {
+		fmt.Printf("    - "+blue+"%+v\n"+reset, cmd)
+	}
+}
+
 func (b *Build) printAllErrorsAndExit() {
 	for _, err := range b.buildErrors {
-		fmt.Printf("%v\n", err)
+		fmt.Printf(red+"%v\n"+reset, err)
 	}
 	fmt.Println("can't execute build")
 	os.Exit(-1)
