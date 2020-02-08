@@ -3,12 +3,12 @@ Primitive arena allocator
 
 Build targets
 ```
-go run ./make/internal -h
+go run ./cmd/internal -h
 ```
 
 Test
 ```
-go run ./make/internal test
+go run ./cmd/internal test
 ```
 
 TODO:
