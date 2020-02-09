@@ -116,7 +116,7 @@ func (s *BytesView) AppendString(bytesSlice Bytes, str string) (Bytes, error) {
 	return target, nil
 }
 
-// AppendString appends one byte to the end of target buffer.
+// AppendByte appends one byte to the end of target buffer.
 // If necessary, it will allocate additional bytes from underlying allocator.
 func (s *BytesView) AppendByte(bytesSlice Bytes, byteToAppend byte) (Bytes, error) {
 	target, allocErr := s.growIfNecessary(bytesSlice, 1)
@@ -195,7 +195,7 @@ func (s *BytesView) CopyBytesToHeap(bytes Bytes) []byte {
 	return copyOnHeap
 }
 
-// CopyBytesToHeap copies Bytes to the general heap as string.
+// CopyBytesToStringOnHeap copies Bytes to the general heap as string.
 // Can be used if you want to pass this Bytes to other goroutine
 // or if you want to destroy/recycle underlying arena and left this Bytes accessible.
 func (s *BytesView) CopyBytesToStringOnHeap(bytes Bytes) string {

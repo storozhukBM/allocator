@@ -1,0 +1,13 @@
+{
+  "run": {
+    "skip-dirs": [
+      "bin",
+      "cmd"
+    ]
+  },
+  "linters-settings": {
+    "govet": {
+      "check-shadowing": true
+    }
+  }
+}

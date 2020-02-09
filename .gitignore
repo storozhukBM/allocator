@@ -2,3 +2,4 @@
 example/main
 coverage.out
 make
+bin/

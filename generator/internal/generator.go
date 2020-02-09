@@ -23,6 +23,7 @@ type allocatorDefinition struct {
 	Exported                     bool
 }
 
+// RunGeneratorForTypes generates code for targetTypes into dirName
 func RunGeneratorForTypes(dirName string, targetTypes []string) error {
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dirName, nil, parser.SpuriousErrors)
@@ -123,10 +124,10 @@ func checkTypeForInternalPointers(t types.Type, pos token.Pos, depth int) (token
 	if isStruct {
 		for i := 0; i < structType.NumFields(); i++ {
 			field := structType.Field(i)
-			pos, fieldErr := checkObjForInternalPointers(field, depth+1)
+			internalPos, fieldErr := checkObjForInternalPointers(field, depth+1)
 			if fieldErr != nil {
 				depthTab := strings.Repeat("\t", depth+1)
-				return pos, fmt.Errorf("pointer based field '%v' of type '%v':\n%s%v", field.Name(), field.Type(), depthTab, fieldErr)
+				return internalPos, fmt.Errorf("pointer based field '%v' of type '%v':\n%s%v", field.Name(), field.Type(), depthTab, fieldErr)
 			}
 		}
 		return token.NoPos, nil
