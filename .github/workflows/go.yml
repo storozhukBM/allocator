@@ -16,19 +16,5 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - uses: actions/cache@v1
-      with:
-        path: ~/.cache/golangci-lint
-        key: ${{ runner.os }}-golangci-lint-${{ hashFiles('~/.cache/golangci-lint/**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-golangci-lint-
-
-    - uses: actions/cache@v1
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
     - name: Verify
       run: go build -v -o make ./cmd/internal && ./make -v verify
