@@ -1,4 +1,6 @@
 # allocator. WIP. This library is under construction.
+![Go](https://github.com/storozhukBM/allocator/workflows/Go/badge.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/storozhukBM/allocator)](https://goreportcard.com/report/github.com/storozhukBM/allocator) [![GoDoc](https://godoc.org/github.com/storozhukBM/allocator?status.svg)](http://godoc.org/github.com/storozhukBM/allocator)
+#
 Primitive arena allocator
 
 Build targets
