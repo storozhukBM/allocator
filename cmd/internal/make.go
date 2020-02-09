@@ -24,19 +24,20 @@ var parallelism = strconv.Itoa(runtime.NumCPU() * 4)
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
 	{`build`, b.RunCmd(Go, `build`, `./...`)},
-
 	{`buildInlineBounds`, b.ShRunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
 
 	{`clean`, clean},
 	{`cleanAll`, func() { clean(); cleanExecutables() }},
+
+	{`lint`, cilint},
 	{`testLib`, testLib},
 	{`testCodeGen`, testCodeGen},
 	{`test`, func() { testLib(); testCodeGen() }},
-	{`generateTestAllocator`, generateTestAllocator},
+	{`verify`, func() { testLib(); testCodeGen(); cilint() }},
 
-	{`lint`, cilint},
+	{`generateTestAllocator`, generateTestAllocator},
 
 	{`coverage`, func() {
 		clean()

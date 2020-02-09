@@ -17,4 +17,4 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Verify
-      run: go build -v -o make ./cmd/internal && ./make -v test
+      run: go build -v -o make ./cmd/internal && ./make -v verify
