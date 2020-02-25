@@ -10,5 +10,5 @@ require (
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mholt/archiver/v3 v3.3.0
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
-	github.com/storozhukBM/build v0.4.0
+	github.com/storozhukBM/build v0.5.0
 )

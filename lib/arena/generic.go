@@ -11,6 +11,7 @@ type allocator interface {
 	CurrentOffset() Offset
 	ToRef(p Ptr) unsafe.Pointer
 	Metrics() Metrics
+	Clear()
 }
 
 // GenericAllocator is the wrapper on top of any other allocator that provides
@@ -32,6 +33,7 @@ type GenericAllocator struct {
 	target    allocator
 	arenaMask uint16
 
+	delegateClear          bool
 	allocationLimitInBytes int
 
 	countOfAllocations int
@@ -49,9 +51,13 @@ type GenericAllocator struct {
 //    if not specified we will use the default capacity of the underlying allocator.
 //  - AllocationLimitInBytes - upper limit for allocations,
 //    if not specified we will use the limit of the underlying allocator.
+//  - DelegateClearToUnderlyingAllocator - delegate Clear call,
+//    this option changes behaviour of Clear method, so it calls Clear on underlying allocator,
+//    for additional details please refer to Clear method documentation.
 type Options struct {
-	InitialCapacity        uint
-	AllocationLimitInBytes uint
+	InitialCapacity                    uint
+	AllocationLimitInBytes             uint
+	DelegateClearToUnderlyingAllocator bool
 }
 
 // NewGenericAllocator creates an instance of the arena.GenericAllocator
@@ -60,7 +66,7 @@ type Options struct {
 //
 // If you are OK with all arena.Options defaults, please pass the empty Options struct.
 func NewGenericAllocator(opts Options) *GenericAllocator {
-	result := &GenericAllocator{}
+	result := &GenericAllocator{delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.InitialCapacity > 0 {
 		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
 		result.allocatedBytes += result.target.Metrics().AllocatedBytes
@@ -83,7 +89,7 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 	if target == nil {
 		target = NewGenericAllocator(opts)
 	}
-	result := &GenericAllocator{target: target}
+	result := &GenericAllocator{target: target, delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.AllocationLimitInBytes > 0 {
 		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
 	}
@@ -166,15 +172,21 @@ func (a *GenericAllocator) CurrentOffset() Offset {
 	return result
 }
 
-// Clear gets rid of the underlying target allocator connection and clears metrics.
+// Clear gets rid of data in current allocator, clears metrics, and makes it available for re-use.
+// According to DelegateClearToUnderlyingAllocator option, it will either call Clear on underlying allocator
+// or simply gets rid of it, so it will create a new target during the first call after Clear.
 //
-// Clear invocation also changes the arena.DynamicAllocator.arenaMask
+// Clear invocation also changes the arena.GenericAllocator.arenaMask
 // so it can prevent some "use after free" arena.GenericAllocator.ToRef calls with arena.Ptr allocated before Clear,
 // but it can't catch usages of already converted values.
 // To avoid such situations, we'd suggest calling this method right before using the result pointer to eliminate its
 // visibility scope and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) Clear() {
-	a.target = nil
+	if a.delegateClear {
+		a.target.Clear()
+	} else {
+		a.target = nil
+	}
 
 	a.arenaMask = (a.arenaMask + 1) | 1
 	a.paddingOverhead = 0

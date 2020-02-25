@@ -50,11 +50,55 @@ func TestSimpleArenaWithInitialCapacity(t *testing.T) {
 	bytesBufferAllocationStand.check(t, a)
 }
 
+func TestSimpleArenaWithInitialCapacityAndDelegatedClear(t *testing.T) {
+	t.Parallel()
+	a := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:                    requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
+	bytesBufferAllocationStand := &arenaByteBufferAllocationCheckingStand{}
+	bytesBufferAllocationStand.check(t, a)
+}
+
 func TestSimpleArenaWithInitialCapacityAndAllocLimit(t *testing.T) {
 	t.Parallel()
 	a := arena.NewGenericAllocator(arena.Options{
 		InitialCapacity:        requiredBytesForBasicTest,
 		AllocationLimitInBytes: 2 * requiredBytesForBasicTest,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	allocSize := uintptr(a.Metrics().AvailableBytes + 1)
+	ptr, allocErr := a.Alloc(allocSize, 1)
+	assert(allocErr == arena.AllocationLimitError, "allocation limit should be triggered")
+	assert(ptr == arena.Ptr{}, "ptr should be empty")
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
+func TestSimpleArenaWithInitialCapacityAndAllocLimitAndDelegatedClear(t *testing.T) {
+	t.Parallel()
+	a := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:                    requiredBytesForBasicTest,
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
 	})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
@@ -89,10 +133,64 @@ func TestSimpleSubArena(t *testing.T) {
 	bufferAllocationLimitStand.check(t, a)
 }
 
+func TestSimpleSubArenaAndDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewGenericAllocator(arena.Options{InitialCapacity: requiredBytesForBasicTest})
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
+func TestSimpleSubArenaAndNestedDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:                    requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
 func TestSimpleSubArenaOverDynamicArena(t *testing.T) {
 	t.Parallel()
 	target := &arena.DynamicAllocator{}
 	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
+func TestSimpleSubArenaOverDynamicArenaWithDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := &arena.DynamicAllocator{}
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
@@ -119,10 +217,123 @@ func TestSimpleSubArenaOverRawArena(t *testing.T) {
 	bufferAllocationLimitStand.check(t, a)
 }
 
+func TestSimpleSubArenaOverRawArenaWithDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewRawAllocator(requiredBytesForBasicTest + 8)
+	a := arena.NewSubAllocator(target, arena.Options{
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	allocSize := uintptr(a.Metrics().AvailableBytes + 1)
+	ptr, allocErr := a.Alloc(allocSize, 1)
+	assert(allocErr != nil, "allocation limit should be triggered")
+	assert(ptr == arena.Ptr{}, "ptr should be empty")
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
 func TestSimpleNestedSubArenas(t *testing.T) {
 	t.Parallel()
 	target := arena.NewGenericAllocator(arena.Options{InitialCapacity: 3 * requiredBytesForBasicTest})
 	a := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	other := arena.NewSubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForBasicTest})
+	otherStand := &basicArenaCheckingStand{}
+	otherStand.check(t, other)
+
+	restrictedArena := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 10})
+	widerArena := arena.NewSubAllocator(restrictedArena, arena.Options{})
+	_, allocErr := widerArena.Alloc(1, 1)
+	failOnError(t, allocErr)
+
+	_, allocErr = widerArena.Alloc(10, 1)
+	assert(allocErr == arena.AllocationLimitError, "allocation limit of parent arena should be triggered")
+
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, a)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, a)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, a)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
+	}
+}
+
+func TestSimpleNestedSubArenasAndDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity: 3 * requiredBytesForBasicTest,
+	})
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	other := arena.NewSubAllocator(a, arena.Options{AllocationLimitInBytes: requiredBytesForBasicTest})
+	otherStand := &basicArenaCheckingStand{}
+	otherStand.check(t, other)
+
+	restrictedArena := arena.NewSubAllocator(target, arena.Options{AllocationLimitInBytes: 10})
+	widerArena := arena.NewSubAllocator(restrictedArena, arena.Options{})
+	_, allocErr := widerArena.Alloc(1, 1)
+	failOnError(t, allocErr)
+
+	_, allocErr = widerArena.Alloc(10, 1)
+	assert(allocErr == arena.AllocationLimitError, "allocation limit of parent arena should be triggered")
+
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, a)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, a)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, a)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
+	}
+}
+
+func TestSimpleNestedSubArenasAndNestedDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:                    3 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
@@ -193,9 +404,72 @@ func TestSimpleConsecutiveSubArenas(t *testing.T) {
 	}
 }
 
+func TestSimpleConsecutiveSubArenasWithDelegatedClear(t *testing.T) {
+	t.Parallel()
+	target := arena.NewGenericAllocator(arena.Options{
+		InitialCapacity:                    requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	a := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	other := arena.NewSubAllocator(target, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	otherStand := &basicArenaCheckingStand{}
+	otherStand.check(t, other)
+
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, a)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, a)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, a)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
+	}
+}
+
 func TestSimpleSubArenaOnNilTarget(t *testing.T) {
 	t.Parallel()
 	a := arena.NewSubAllocator(nil, arena.Options{AllocationLimitInBytes: 2 * requiredBytesForBasicTest})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
+
+	bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+	bytesAllocationLimitsStand.check(t, a)
+	bufferAllocationLimitStand := &arenaByteBufferLimitationsAllocationCheckingStand{}
+	bufferAllocationLimitStand.check(t, a)
+}
+
+func TestSimpleSubArenaOnNilTargetWithDelegatedClear(t *testing.T) {
+	t.Parallel()
+	a := arena.NewSubAllocator(nil, arena.Options{
+		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
+		DelegateClearToUnderlyingAllocator: true,
+	})
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
