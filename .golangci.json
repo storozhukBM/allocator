@@ -8,6 +8,36 @@
   "linters-settings": {
     "govet": {
       "check-shadowing": true
+    },
+    "nakedret": {
+      "lines": 1
     }
+  },
+  "linters": {
+    "enable": [
+      "dogsled",
+      "dupl",
+      "gochecknoglobals",
+      "gochecknoinits",
+      "gocognit",
+      "goconst",
+      "gocritic",
+      "gocyclo",
+      "godox",
+      "gofmt",
+      "goimports",
+      "golint",
+      "goprintffuncname",
+      "interfacer",
+      "maligned",
+      "misspell",
+      "nakedret",
+      "prealloc",
+      "rowserrcheck",
+      "scopelint",
+      "stylecheck",
+      "unconvert",
+      "whitespace"
+    ]
   }
 }

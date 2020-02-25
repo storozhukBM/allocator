@@ -95,17 +95,19 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 func genRandomSize() uintptr {
 	size := uintptr(rand.Intn(1024))
 	modifier := rand.Float32()
-	if modifier < 0.1 {
+	switch {
+	case modifier < 0.1:
 		size *= 1024
 		return size
-	} else if modifier < 0.05 {
+	case modifier < 0.05:
 		size *= 1024 * 1024
 		return size
-	} else if modifier < 0.003 {
+	case modifier < 0.003:
 		size *= 1024 * 1024 * 1024
 		return size
+	default:
+		return size
 	}
-	return size
 }
 
 func genRandomAlignment() uintptr {

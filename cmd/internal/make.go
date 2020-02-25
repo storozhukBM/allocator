@@ -61,10 +61,11 @@ func generateTestAllocator() {
 }
 
 func testLib() {
-	defer b.AddTarget("test library & generated code")()
+	defer b.AddTarget("test library code")()
 	defer forceClean()
 	b.Run(Go, `test`, `-parallel`, parallelism, `./lib/...`)
 	generateTestAllocator()
+	defer b.AddTarget("test generated code")()
 	b.Run(Go, `test`, `-parallel`, parallelism, `./generator/internal/testdata/testdata_test/...`)
 }
 

@@ -99,7 +99,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 
 		bossPtr, allocErr := target.Alloc(sizeOfPerson, alignmentOfPerson)
 		failOnError(t, allocErr)
-		boss := (*person)(unsafe.Pointer(target.ToRef(bossPtr)))
+		boss := (*person)(target.ToRef(bossPtr))
 		boss.Name, allocErr = alloc.EmbedAsString([]byte("Richard Bahman"))
 		failOnError(t, allocErr)
 		boss.Age = 44

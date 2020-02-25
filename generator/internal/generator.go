@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"unicode"
 )
 
@@ -23,8 +24,16 @@ type allocatorDefinition struct {
 	Exported                     bool
 }
 
+type Generator struct {
+	template *template.Template
+}
+
+func NewGenerator() *Generator {
+	return &Generator{template: template.Must(template.New("embedded").Parse(embeddedTemplate))}
+}
+
 // RunGeneratorForTypes generates code for targetTypes into dirName
-func RunGeneratorForTypes(dirName string, targetTypes []string) error {
+func (g *Generator) RunGeneratorForTypes(dirName string, targetTypes []string) error {
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dirName, nil, parser.SpuriousErrors)
 	if err != nil {
@@ -49,7 +58,7 @@ func RunGeneratorForTypes(dirName string, targetTypes []string) error {
 		if obj == nil {
 			continue
 		}
-		generationErr := generateAllocators(fset, obj, t)
+		generationErr := g.generateAllocators(fset, obj, t)
 		if generationErr != nil {
 			return fmt.Errorf("can't generate allocator for type: %v: \n%v", obj.Type(), generationErr)
 		}
@@ -57,8 +66,8 @@ func RunGeneratorForTypes(dirName string, targetTypes []string) error {
 	return nil
 }
 
-func generateAllocators(fset *token.FileSet, obj types.Object, typeName string) error {
-	checkPos, checkErr := checkObjForInternalPointers(obj, 0)
+func (g *Generator) generateAllocators(fset *token.FileSet, obj types.Object, typeName string) error {
+	checkPos, checkErr := g.checkObjForInternalPointers(obj, 0)
 	if checkErr != nil {
 		return fmt.Errorf(
 			"target obj '%v' has internal pointers: %v\npointer position: %v\n%v",
@@ -76,12 +85,12 @@ func generateAllocators(fset *token.FileSet, obj types.Object, typeName string) 
 		TypeNameWithUpperFirstLetter: typeNameWithUpperFirstLetter,
 		Exported:                     obj.Exported(),
 	}
-	return generateFromTemplateAndWriteToFile(definition)
+	return g.generateFromTemplateAndWriteToFile(definition)
 }
 
-func generateFromTemplateAndWriteToFile(definition allocatorDefinition) error {
+func (g *Generator) generateFromTemplateAndWriteToFile(definition allocatorDefinition) error {
 	var b bytes.Buffer
-	templateErr := embeddedTemplate.Execute(&b, definition)
+	templateErr := g.template.Execute(&b, definition)
 	if templateErr != nil {
 		return fmt.Errorf("can't render embedded template: %v", templateErr)
 	}
@@ -102,20 +111,23 @@ func generateFromTemplateAndWriteToFile(definition allocatorDefinition) error {
 	return nil
 }
 
-func checkObjForInternalPointers(obj types.Object, depth int) (token.Pos, error) {
-	pos, objErr := checkTypeForInternalPointers(obj.Type(), obj.Pos(), depth)
+func (g *Generator) checkObjForInternalPointers(obj types.Object, depth int) (token.Pos, error) {
+	pos, objErr := g.checkTypeForInternalPointers(obj.Type(), obj.Pos(), depth)
 	if objErr != nil {
 		return pos, fmt.Errorf("pointer based obj: '%+v' has %v", obj, objErr)
 	}
 	return pos, objErr
 }
 
-func checkTypeForInternalPointers(t types.Type, pos token.Pos, depth int) (token.Pos, error) {
+func (g *Generator) checkTypeForInternalPointers(t types.Type, pos token.Pos, depth int) (token.Pos, error) {
 	basicType, isBasic := t.Underlying().(*types.Basic)
 	if isBasic {
 		switch basicType.Kind() {
 		case types.String, types.UnsafePointer, types.UntypedString, types.UntypedNil, types.Invalid:
-			return pos, fmt.Errorf("pointer based type: '%v'; kind: '%v'", t, basicType.Kind())
+			return pos, fmt.Errorf(
+				"pointer based type: '%v'; kind: '%v'",
+				t, basicType.Kind(),
+			)
 		default:
 			return token.NoPos, nil
 		}
@@ -124,10 +136,13 @@ func checkTypeForInternalPointers(t types.Type, pos token.Pos, depth int) (token
 	if isStruct {
 		for i := 0; i < structType.NumFields(); i++ {
 			field := structType.Field(i)
-			internalPos, fieldErr := checkObjForInternalPointers(field, depth+1)
+			internalPos, fieldErr := g.checkObjForInternalPointers(field, depth+1)
 			if fieldErr != nil {
 				depthTab := strings.Repeat("\t", depth+1)
-				return internalPos, fmt.Errorf("pointer based field '%v' of type '%v':\n%s%v", field.Name(), field.Type(), depthTab, fieldErr)
+				return internalPos, fmt.Errorf(
+					"pointer based field '%v' of type '%v':\n%s%v",
+					field.Name(), field.Type(), depthTab, fieldErr,
+				)
 			}
 		}
 		return token.NoPos, nil
@@ -135,10 +150,13 @@ func checkTypeForInternalPointers(t types.Type, pos token.Pos, depth int) (token
 	arrayType, isArray := t.Underlying().(*types.Array)
 	if isArray {
 		if arrayType.Len() >= 0 {
-			errPos, elemErr := checkTypeForInternalPointers(arrayType.Elem(), pos, depth+1)
+			errPos, elemErr := g.checkTypeForInternalPointers(arrayType.Elem(), pos, depth+1)
 			if elemErr != nil {
 				depthTab := strings.Repeat("\t", depth+1)
-				return errPos, fmt.Errorf("array of elements %v has pointer based type:\n%s%v", t, depthTab, elemErr)
+				return errPos, fmt.Errorf(
+					"array of elements %v has pointer based type:\n%s%v",
+					t, depthTab, elemErr,
+				)
 			}
 			return token.NoPos, nil
 		}

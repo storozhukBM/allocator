@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/storozhukBM/allocator/generator/internal"
+	generator "github.com/storozhukBM/allocator/generator/internal"
 )
 
 func main() {
@@ -23,7 +23,8 @@ func main() {
 		log.Fatalf("the flag -dir must be set")
 	}
 	types := strings.Split(*typeNames, ",")
-	generationErr := generator.RunGeneratorForTypes(dirName, types)
+	g := generator.NewGenerator()
+	generationErr := g.RunGeneratorForTypes(dirName, types)
 	if generationErr != nil {
 		fmt.Printf("can't generate allocators: %v", generationErr)
 		os.Exit(1)

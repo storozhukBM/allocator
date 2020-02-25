@@ -8,9 +8,9 @@ Build targets
 go run ./cmd/internal -h
 ```
 
-Test
+Verify
 ```
-go run ./cmd/internal test
+go run ./cmd/internal verify
 ```
 
 TODO:

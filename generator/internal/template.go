@@ -1,10 +1,6 @@
 package generator
 
-import (
-	"text/template"
-)
-
-var embeddedTemplate = template.Must(template.New("embedded").Parse(`
+const embeddedTemplate = `
 package {{.PkgName}}
 {{$ttName := .TargetTypeName}}
 
@@ -302,4 +298,4 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}State) makeSlice(len int) ({{$
 	}
 	return sliceHdr, nil
 }
-`))
+`

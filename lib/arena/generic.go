@@ -124,7 +124,7 @@ func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	}
 	afterCallMetrics := a.target.Metrics()
 
-	a.countOfAllocations += 1
+	a.countOfAllocations++
 	a.usedBytes += afterCallMetrics.UsedBytes - beforeCallMetrics.UsedBytes
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
@@ -213,8 +213,10 @@ type EnhancedMetrics struct {
 // String provides a string snapshot of the EnhancedMetrics state.
 func (p EnhancedMetrics) String() string {
 	return fmt.Sprintf(
-		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v CountOfOnHeapAllocations %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
-		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity, p.CountOfOnHeapAllocations, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
+		"{UsedBytes: %v AvailableBytes: %v AllocatedBytes %v MaxCapacity %v "+
+			"CountOfOnHeapAllocations %v CountOfAllocations: %v PaddingOverhead: %v DataBytes: %v}",
+		p.UsedBytes, p.AvailableBytes, p.AllocatedBytes, p.MaxCapacity,
+		p.CountOfOnHeapAllocations, p.CountOfAllocations, p.PaddingOverhead, p.DataBytes,
 	)
 }
 

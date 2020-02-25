@@ -11,57 +11,59 @@ import (
 
 func TestGeneratorForPoint(t *testing.T) {
 	t.Parallel()
-	failOnError(t, RunGeneratorForTypes("./testdata/etalon/", []string{"Point"}))
+	failOnError(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"Point"}))
 	compareOutputFiles(t, "Point")
 }
 
 func TestGeneratorForCoordinate(t *testing.T) {
 	t.Parallel()
-	failOnError(t, RunGeneratorForTypes("./testdata/etalon/", []string{"coordinate"}))
+	failOnError(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"coordinate"}))
 	compareOutputFiles(t, "coordinate")
 }
 
 func TestGeneratorForCircle(t *testing.T) {
 	t.Parallel()
-	failOnError(t, RunGeneratorForTypes("./testdata/etalon/", []string{"Circle"}))
+	failOnError(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"Circle"}))
 	compareOutputFiles(t, "Circle")
 }
 
 func TestGeneratorForCircleColor(t *testing.T) {
 	t.Parallel()
-	failOnError(t, RunGeneratorForTypes("./testdata/etalon/", []string{"CircleColor"}))
+	failOnError(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"CircleColor"}))
 	compareOutputFiles(t, "CircleColor")
 }
 
 func TestGeneratorForStablePointsVector(t *testing.T) {
 	t.Parallel()
-	failOnError(t, RunGeneratorForTypes("./testdata/etalon/", []string{"StablePointsVector"}))
+	failOnError(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"StablePointsVector"}))
 	compareOutputFiles(t, "StablePointsVector")
 }
 
 func TestGeneratorForInvalidCirclePtr(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"CircleWithPointer"}))
+	expectErr(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"CircleWithPointer"}))
 }
 
 func TestGeneratorForInvalidCircleCirclePtr(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"EmbeddedCircleWithPointer"}))
+	expectErr(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"EmbeddedCircleWithPointer"}))
 }
 
 func TestGeneratorForInvalidCoordinates(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"coordinates"}))
+	expectErr(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"coordinates"}))
 }
 
 func TestGeneratorForInvalidPointsVector(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"PointsVector"}))
+	expectErr(t, NewGenerator().RunGeneratorForTypes("./testdata/etalon/", []string{"PointsVector"}))
 }
 
 func TestGeneratorForInvalidFixedCircleCirclePtrVector(t *testing.T) {
 	t.Parallel()
-	expectErr(t, RunGeneratorForTypes("./testdata/etalon/", []string{"FixedEmbeddedCircleWithPointerVector"}))
+	expectErr(t, NewGenerator().RunGeneratorForTypes(
+		"./testdata/etalon/", []string{"FixedEmbeddedCircleWithPointerVector"},
+	))
 }
 
 func compareOutputFiles(t *testing.T, targetType string) {

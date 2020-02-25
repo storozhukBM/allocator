@@ -93,33 +93,34 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 		t.Logf("bytes as string state: %v", str)
 	}
 
+	const hello = "hello"
 	{
-		src := []byte("hello")
+		src := []byte(hello)
 		embeddedBytes, allocErr := alloc.Embed(src)
 		failOnError(t, allocErr)
 
 		src[0] = 'g'
 
 		assert(
-			alloc.BytesToStringRef(embeddedBytes) == "hello",
+			alloc.BytesToStringRef(embeddedBytes) == hello,
 			"unexpected buffer state: %+v", embeddedBytes,
 		)
 	}
 	{
-		src := []byte("hello")
+		src := []byte(hello)
 		embeddedBytes, allocErr := alloc.EmbedAsBytes(src)
 		failOnError(t, allocErr)
 
 		src[0] = 'g'
-		assert(string(embeddedBytes) == "hello", "unexpected buffer state: %+v", embeddedBytes)
+		assert(string(embeddedBytes) == hello, "unexpected buffer state: %+v", embeddedBytes)
 	}
 	{
-		src := []byte("hello")
+		src := []byte(hello)
 		embeddedString, allocErr := alloc.EmbedAsString(src)
 		failOnError(t, allocErr)
 
 		src[0] = 'g'
-		assert(embeddedString == "hello", "unexpected buffer state: %+v", embeddedString)
+		assert(embeddedString == hello, "unexpected buffer state: %+v", embeddedString)
 	}
 }
 

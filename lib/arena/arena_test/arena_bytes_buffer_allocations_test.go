@@ -57,7 +57,10 @@ func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allo
 		assert(buf.Cap() >= 12, "expect cap to be >= 12")
 
 		assert(bytes.Equal(buf.Bytes(), []byte("hello sailor")), "not expected bytes state: %+v", buf.Bytes())
-		assert(bytes.Equal(buf.CopyBytesToHeap(), []byte("hello sailor")), "not expected bytes state: %+v", buf.CopyBytesToHeap())
+		assert(
+			bytes.Equal(buf.CopyBytesToHeap(), []byte("hello sailor")),
+			"not expected bytes state: %+v", buf.CopyBytesToHeap(),
+		)
 		assert(buf.String() == "hello sailor", "not expected bytes state: %+v", buf.String())
 		assert(buf.CopyBytesToStringOnHeap() == "hello sailor", "not expected bytes state: %+v", buf.CopyBytesToStringOnHeap())
 		assert(buf.Len() == 12, "expect len to be 12")

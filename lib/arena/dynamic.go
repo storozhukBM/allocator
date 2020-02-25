@@ -174,7 +174,7 @@ func (a *DynamicAllocator) grow(requiredAvailableSize int) {
 	newArena := a.getNewArena(newSize)
 	if a.currentArena.buffer != nil {
 		a.arenas = append(a.arenas, a.currentArena)
-		a.currentArenaIdx += 1
+		a.currentArenaIdx++
 	}
 	a.currentArena = newArena
 }
@@ -183,7 +183,7 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	if a.freeListOfClearArenas == nil {
 		newRawArena := NewRawAllocator(uint(size))
 		a.allocatedBytes += size
-		a.onHeapAllocations += 1
+		a.onHeapAllocations++
 		return *newRawArena
 	}
 
@@ -197,7 +197,7 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	a.freeListOfClearArenas = nil
 	newRawArena := NewRawAllocator(uint(size))
 	a.allocatedBytes += size
-	a.onHeapAllocations += 1
+	a.onHeapAllocations++
 	return *newRawArena
 }
 
