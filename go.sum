@@ -37,10 +37,6 @@ github.com/pierrec/lz4 v2.0.5+incompatible h1:2xWsjqPFWcplujydGg4WmhC/6fZqK42wMM
 github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pierrec/lz4 v2.4.1+incompatible h1:mFe7ttWaflA46Mhqh+jUfjp2qTbPYxLB2/OyBppH9dg=
 github.com/pierrec/lz4 v2.4.1+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
-github.com/storozhukBM/build v0.3.0 h1:85k/OBMYRegYOBwho9zz8Ie3opY43+z3XAh8hT9SnB4=
-github.com/storozhukBM/build v0.3.0/go.mod h1:E4VNXHqBVkHMyyrY3HHq8jF/JS8aauMmpEawDojpcgI=
-github.com/storozhukBM/build v0.4.0 h1:mHor0ddNCnG4xiECCUuKBA16s1aw/9XHDJUplp3hPVY=
-github.com/storozhukBM/build v0.4.0/go.mod h1:E4VNXHqBVkHMyyrY3HHq8jF/JS8aauMmpEawDojpcgI=
 github.com/storozhukBM/build v0.5.0 h1:sauS2fg8My26GUoS2s77QD3gY52+RivvGBgROiHjpwg=
 github.com/storozhukBM/build v0.5.0/go.mod h1:E4VNXHqBVkHMyyrY3HHq8jF/JS8aauMmpEawDojpcgI=
 github.com/ulikunitz/xz v0.5.6 h1:jGHAfXawEGZQ3blwU5wnWKQJvAraT7Ftq9EXjnXYgt8=
