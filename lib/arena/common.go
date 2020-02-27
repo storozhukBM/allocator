@@ -84,7 +84,7 @@ func clearBytes(buf []byte) {
 		return
 	}
 	// this pattern will be recognized by compiler and optimized
-	for i := 0; i < len(buf); i++ {
+	for i := range buf {
 		buf[i] = 0
 	}
 }

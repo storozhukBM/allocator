@@ -12,7 +12,7 @@ const makeExecutable = `make`
 const binDirName = `bin`
 const golangCiLinterVersion = `1.23.6`
 
-var parallelism = strconv.Itoa(runtime.NumCPU() * 4)
+var parallelism = strconv.Itoa(runtime.NumCPU() * runtime.NumCPU())
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
