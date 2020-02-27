@@ -73,8 +73,7 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 			personPtr, allocErr := target.Alloc(unsafe.Sizeof(person{}), unsafe.Alignof(person{}))
 			failOnError(t, allocErr)
 			ref := target.ToRef(personPtr)
-			rawPtr := uintptr(ref)
-			p := (*person)(unsafe.Pointer(rawPtr))
+			p := (*person)(ref)
 			p.Name = "John " + strconv.Itoa(rand.Int())
 			p.Age = uint(rand.Uint32())
 			allocations = append(allocations, allocatedPerson{ptr: personPtr, person: *p})
@@ -84,8 +83,7 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 	for _, alloc := range allocations {
 		ref := target.ToRef(alloc.ptr)
 		assert(ref != nil, "ref should be resolvable")
-		rawPtr := uintptr(ref)
-		p := (*person)(unsafe.Pointer(rawPtr))
+		p := (*person)(ref)
 		assert(p.Name == alloc.person.Name, "unexpected person state: %+v; %+v", p, alloc)
 		assert(p.Age == alloc.person.Age, "unexpected person state: %+v; %+v", p, alloc)
 	}
