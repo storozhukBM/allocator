@@ -3,7 +3,7 @@
 #
 Primitive arena allocator
 
-Build targets
+List build targets
 ```
 go run ./cmd/internal -h
 ```
@@ -11,6 +11,11 @@ go run ./cmd/internal -h
 Verify
 ```
 go run ./cmd/internal verify
+```
+Or
+```
+go run ./cmd/internal itself
+./make verify
 ```
 
 TODO:

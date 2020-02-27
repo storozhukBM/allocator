@@ -197,19 +197,20 @@ func (a *GenericAllocator) Clear() {
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *GenericAllocator) Metrics() Metrics {
+	if a.target == nil {
+		return Metrics{}
+	}
+	targetArenaMetrics := a.target.Metrics()
 	result := Metrics{
 		UsedBytes:                a.usedBytes,
+		AvailableBytes:           targetArenaMetrics.AvailableBytes,
 		AllocatedBytes:           a.allocatedBytes,
+		MaxCapacity:              targetArenaMetrics.MaxCapacity,
 		CountOfOnHeapAllocations: a.onHeapAllocations,
-	}
-	if a.target != nil {
-		targetArenaMetrics := a.target.Metrics()
-		result.AvailableBytes = targetArenaMetrics.AvailableBytes
-		result.MaxCapacity = targetArenaMetrics.MaxCapacity
 	}
 	if a.allocationLimitInBytes > 0 {
 		result.MaxCapacity = a.allocationLimitInBytes
-		result.AvailableBytes = min(result.AvailableBytes, a.allocationLimitInBytes) - result.UsedBytes
+		result.AvailableBytes = min(a.allocationLimitInBytes, targetArenaMetrics.AllocatedBytes) - result.UsedBytes
 	}
 	return result
 }
