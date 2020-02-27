@@ -21,7 +21,6 @@ go run ./cmd/internal itself
 TODO:
 First Release scope
 1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
-1. make an option to clean a underlying arena during clear in Generic allocator.
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
@@ -62,3 +61,4 @@ Done:
     1. Arena string allocation option from passed []byte
     1. Optimization of append to consecutive byte slices where we try to fit allocation in currently available buffer
 1. Code generation - take into account the observability of specified structure
+1. Ooption to clean a underlying arena during clear in Generic allocator

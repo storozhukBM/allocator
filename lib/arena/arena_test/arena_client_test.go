@@ -527,6 +527,52 @@ func TestSimpleArena(t *testing.T) {
 	bytesBufferAllocationStand.check(t, a)
 }
 
+func TestSimpleArenaWithDelegatedClear(t *testing.T) {
+	t.Parallel()
+	a := arena.NewGenericAllocator(arena.Options{
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	stand := &basicArenaCheckingStand{}
+	stand.check(t, a)
+
+	firstPtr, allocErr := a.Alloc(uintptr(a.Metrics().AvailableBytes+1), 1)
+	assert(allocErr == nil, "simple arena should grow")
+	assert(firstPtr != arena.Ptr{}, "firstPtr should not be empty")
+	assert(a.ToRef(firstPtr) != nil, "firstPtr is not nil")
+
+	secondPtr, allocErr := a.Alloc(uintptr(a.Metrics().AvailableBytes+1), 1)
+	assert(allocErr == nil, "simple arena should grow")
+	assert(secondPtr != arena.Ptr{}, "secondPtr should not be empty")
+	assert(a.ToRef(secondPtr) != nil, "secondPtr is not nil")
+	assert(a.ToRef(firstPtr) != nil, "firstPtr is still not nil")
+
+	other := arena.NewGenericAllocator(arena.Options{
+		DelegateClearToUnderlyingAllocator: true,
+	})
+	otherArenaPtr, allocErr := other.Alloc(1, 1)
+	assert(allocErr == nil, "err should be nil")
+
+	func() {
+		defer func() {
+			wrongArenaToRefPanic := recover()
+			assert(wrongArenaToRefPanic != nil, "toRef on different arena should trigger panic")
+		}()
+		a.ToRef(otherArenaPtr)
+	}()
+
+	maskStand := &arenaMaskCheckingStand{}
+	maskStand.check(t, a)
+
+	growthStand := &arenaDynamicGrowthStand{}
+	growthStand.check(t, a)
+
+	bytesAllocationStand := &arenaByteAllocationCheckingStand{}
+	bytesAllocationStand.check(t, a)
+
+	bytesBufferAllocationStand := &arenaByteBufferAllocationCheckingStand{}
+	bytesBufferAllocationStand.check(t, a)
+}
+
 func TestDynamicArena(t *testing.T) {
 	t.Parallel()
 	a := &arena.DynamicAllocator{}
