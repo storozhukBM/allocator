@@ -113,9 +113,8 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		s.checkArenaStrIsUnique(t, target)
 
 		ref := target.ToRef(personPtr)
-		rawPtr := uintptr(ref)
 		{
-			p := (*person)(unsafe.Pointer(rawPtr))
+			p := (*person)(ref)
 			p.Name, allocErr = alloc.EmbedAsString([]byte("John Smith"))
 			failOnError(t, allocErr)
 			p.Age = 21
@@ -123,7 +122,7 @@ func (s *basicArenaCheckingStand) check(t *testing.T, target allocator) {
 		}
 		runtime.GC()
 		{
-			p := (*person)(unsafe.Pointer(rawPtr))
+			p := (*person)(ref)
 			assert(p.Name == "John Smith", "unexpected person state: %+v", p)
 			assert(p.Age == 21, "unexpected person state: %+v", p)
 			assert(p.Manager.Name == "Richard Bahman", "unexpected person state: %+v", p)

@@ -83,9 +83,9 @@ func clearBytes(buf []byte) {
 	if len(buf) == 0 {
 		return
 	}
-	buf[0] = 0
-	for bufPart := 1; bufPart < len(buf); bufPart *= 2 {
-		copy(buf[bufPart:], buf[:bufPart])
+	// this pattern will be recognized by compiler and optimized
+	for i := range buf {
+		buf[i] = 0
 	}
 }
 

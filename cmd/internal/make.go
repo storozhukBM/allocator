@@ -8,10 +8,11 @@ import (
 
 const coverageName = `coverage.out`
 const codeGenerationToolName = `allocgen`
+const makeExecutable = `make`
 const binDirName = `bin`
 const golangCiLinterVersion = `1.23.6`
 
-var parallelism = strconv.Itoa(runtime.NumCPU() * 4)
+var parallelism = strconv.Itoa(runtime.NumCPU() * runtime.NumCPU())
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
@@ -19,6 +20,8 @@ var commands = []Command{
 	{`buildInlineBounds`, b.ShRunCmd(
 		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
 	)},
+
+	{`itself`, b.RunCmd(Go, `build`, `-o`, makeExecutable, `./cmd/internal`)},
 
 	{`clean`, clean},
 	{`cleanAll`, func() { clean(); cleanExecutables() }},
@@ -91,6 +94,7 @@ func forceClean() {
 
 func cleanExecutables() {
 	defer b.AddTarget("clean executables")()
+	b.Run(`rm`, `-f`, makeExecutable)
 	b.Run(`rm`, `-rf`, binDirName)
 }
 
