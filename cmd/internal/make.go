@@ -1,9 +1,12 @@
 package main
 
 import (
+	"github.com/gen2brain/beeep"
 	. "github.com/storozhukBM/build"
+	"os"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 const coverageName = `coverage.out`
@@ -126,5 +129,13 @@ func downloadCILinter() (string, error) {
 
 func main() {
 	b.Register(commands)
-	b.BuildFromOsArgs()
+	buildStart := time.Now()
+	buildErr := b.BuildFromOsArgs()
+	if buildErr != nil {
+		_ = beeep.Notify("Failure", "Allocator build failure: "+buildErr.Error(), "")
+		os.Exit(-1)
+	}
+	if time.Since(buildStart).Seconds() > 2 {
+		_ = beeep.Notify("Success", "Allocator build success", "")
+	}
 }
