@@ -1,6 +1,6 @@
 module github.com/storozhukBM/allocator
 
-go 1.13
+go 1.14
 
 require (
 	github.com/andybalholm/brotli v1.0.0 // indirect
@@ -14,10 +14,8 @@ require (
 	github.com/mholt/archiver/v3 v3.3.0
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
-	github.com/storozhukBM/build v0.5.0
+	github.com/storozhukBM/build v0.6.0
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
 	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2 // indirect
 )
-
-replace github.com/storozhukBM/build => /Users/bstorozhuk/Project/go/build
