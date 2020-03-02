@@ -233,7 +233,9 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 	if allocErr != nil {
 		return Bytes{}, allocErr
 	}
-	copy(s.BytesToRef(newTarget), s.BytesToRef(target))
+	if target.len > 0 {
+		copy(s.BytesToRef(newTarget), s.BytesToRef(target))
+	}
 	target = newTarget
 
 	return target, nil

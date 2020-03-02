@@ -276,6 +276,25 @@ func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(
 		eq(t, 1, arenaPointsVector.Len(), "len should be 1")
 		eq(t, 1, arenaPointsVector.Cap(), "cap should be 1")
 	}
+	{
+		arenaPointsVector, allocErr := alloc.Append(
+			etalon.StablePointsVectorBuffer{},
+			etalon.StablePointsVector{Points: [3]etalon.Point{
+				{X: 1, Y: 2},
+				{X: 3, Y: 4},
+				{X: 5, Y: 6},
+			}},
+		)
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
+			{X: 1, Y: 2},
+			{X: 3, Y: 4},
+			{X: 5, Y: 6},
+		}}}
+		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
+		eq(t, 1, arenaPointsVector.Len(), "len should be 1")
+		eq(t, true, arenaPointsVector.Cap() >= 1, "cap should be >= 1")
+	}
 }
 
 func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(
@@ -457,9 +476,26 @@ func (s *arenaGenAllocationCheckingStand) verifySliceAlloc(
 		eq(t, 1, len(arenaPointsVector), "len should be 1")
 		eq(t, 1, cap(arenaPointsVector), "cap should be 1")
 	}
+	{
+		arenaPointsVector, allocErr := alloc.Append(nil, etalon.StablePointsVector{Points: [3]etalon.Point{
+			{X: 1, Y: 2},
+			{X: 3, Y: 4},
+			{X: 5, Y: 6},
+		}})
+		failOnError(t, allocErr)
+		expectedVector := []etalon.StablePointsVector{{Points: [3]etalon.Point{
+			{X: 1, Y: 2},
+			{X: 3, Y: 4},
+			{X: 5, Y: 6},
+		}}}
+		eq(t, expectedVector, arenaPointsVector, "should be equal")
+		eq(t, 1, len(arenaPointsVector), "len should be 1")
+		eq(t, true, cap(arenaPointsVector) >= 1, "cap should be >= 1")
+	}
 }
 
-func (s *arenaGenAllocationCheckingStand) verifySingleItemAllocation(t *testing.T, view *etalon.StablePointsVectorView) {
+func (s *arenaGenAllocationCheckingStand) verifySingleItemAllocation(t *testing.T,
+	view *etalon.StablePointsVectorView) {
 	alloc := view.Ptr
 	{
 		pointsVectorPtr, allocErr := alloc.New()
