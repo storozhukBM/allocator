@@ -122,6 +122,13 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 		src[0] = 'g'
 		assert(embeddedString == hello, "unexpected buffer state: %+v", embeddedString)
 	}
+
+	{
+		resultBytes, allocErr := alloc.AppendString(arena.Bytes{}, "sailor")
+		failOnError(t, allocErr)
+		result := alloc.BytesToStringRef(resultBytes)
+		assert(result == "sailor", "unexpected buffer state: %+v", result)
+	}
 }
 
 type arenaByteAllocationLimitsCheckingStand struct{}

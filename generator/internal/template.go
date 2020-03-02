@@ -271,9 +271,11 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) growIfNecessary(
 	if allocErr != nil {
 		return {{$ttName}}Buffer{}, allocErr
 	}
-	dst := s.ToRef(newDstSlice)
-	prev := s.ToRef(slice)
-	copy(dst, prev)
+	if slice.len > 0 {
+		dst := s.ToRef(newDstSlice)
+		prev := s.ToRef(slice)
+		copy(dst, prev)
+	}
 	return newDstSlice, nil
 }
 
