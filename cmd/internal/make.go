@@ -32,6 +32,7 @@ var commands = []Command{
 	{`lint`, runLinters},
 	{`testLib`, testLib},
 	{`testCodeGen`, testCodeGen},
+	{`testRace`, testRace},
 	{`test`, func() { testLib(); testCodeGen() }},
 	{`verify`, func() { testLib(); testCodeGen(); runLinters() }},
 
@@ -79,6 +80,17 @@ func testCodeGen() {
 	defer b.AddTarget("test code generator itself")()
 	defer forceClean()
 	b.Run(Go, `test`, `-parallel`, parallelism, `./generator/...`)
+}
+
+func testRace() {
+	defer b.AddTarget("test library code")()
+	defer forceClean()
+	b.Run(Go, `test`, `-race`, `./lib/...`)
+	generateTestAllocator()
+	defer b.AddTarget("test generated code")()
+	b.Run(Go, `test`, `-race`, `./generator/internal/testdata/testdata_test/...`)
+	defer forceClean()
+	b.Run(Go, `test`, `-race`, `./generator/...`)
 }
 
 func clean() {
@@ -135,7 +147,7 @@ func main() {
 		_ = beeep.Notify("Failure", "Allocator build failure: "+buildErr.Error(), "")
 		os.Exit(-1)
 	}
-	if time.Since(buildStart).Seconds() > 2 {
+	if time.Since(buildStart).Seconds() > 5 {
 		_ = beeep.Notify("Success", "Allocator build success", "")
 	}
 }

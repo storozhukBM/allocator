@@ -10,12 +10,12 @@ import (
 	"github.com/storozhukBM/allocator/lib/arena"
 )
 
-type arenaByteBufferAllocationCheckingStand struct{}
+type arenaByteBufferWithErrorAllocationCheckingStand struct{}
 
-func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allocator) {
+func (s *arenaByteBufferWithErrorAllocationCheckingStand) check(t *testing.T, target allocator) {
 	value := generateRandomValue()
 	for i := 0; i < 15; i++ {
-		arenaBuf := arena.NewBuffer(target)
+		arenaBuf := arena.NewBufferWithError(target)
 		assert(arenaBuf.Len() == 0, "expect initial len to be 0")
 		assert(arenaBuf.Cap() == 0, "expect initial cap to be 0")
 		{
@@ -36,7 +36,7 @@ func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allo
 		assert(bytes.Equal(arenaBuf.Bytes(), heapBuf.Bytes()), "unnexpected buffer state")
 	}
 	{
-		buf := arena.NewBuffer(target)
+		buf := arena.NewBufferWithError(target)
 		assert(buf.Len() == 0, "expect initial len to be 0")
 		assert(buf.Cap() == 0, "expect initial cap to be 0")
 		n, allocErr := buf.WriteString("hello")
@@ -56,23 +56,24 @@ func (s *arenaByteBufferAllocationCheckingStand) check(t *testing.T, target allo
 		assert(buf.Len() == 12, "expect len to be 12")
 		assert(buf.Cap() >= 12, "expect cap to be >= 12")
 
-		assert(bytes.Equal(buf.Bytes(), []byte("hello sailor")), "not expected bytes state: %+v", buf.Bytes())
+		helloSailor := "hello sailor"
+		assert(bytes.Equal(buf.Bytes(), []byte(helloSailor)), "not expected bytes state: %+v", buf.Bytes())
 		assert(
-			bytes.Equal(buf.CopyBytesToHeap(), []byte("hello sailor")),
+			bytes.Equal(buf.CopyBytesToHeap(), []byte(helloSailor)),
 			"not expected bytes state: %+v", buf.CopyBytesToHeap(),
 		)
-		assert(buf.String() == "hello sailor", "not expected bytes state: %+v", buf.String())
-		assert(buf.CopyBytesToStringOnHeap() == "hello sailor", "not expected bytes state: %+v", buf.CopyBytesToStringOnHeap())
+		assert(buf.String() == helloSailor, "not expected bytes state: %+v", buf.String())
+		assert(buf.CopyBytesToStringOnHeap() == helloSailor, "not expected bytes state: %+v", buf.CopyBytesToStringOnHeap())
 		assert(buf.Len() == 12, "expect len to be 12")
 		assert(buf.Cap() >= 12, "expect cap to be >= 12")
 	}
 }
 
-type arenaByteBufferLimitationsAllocationCheckingStand struct{}
+type arenaByteBufferWithErrorLimitationsAllocationCheckingStand struct{}
 
-func (s *arenaByteBufferLimitationsAllocationCheckingStand) check(t *testing.T, target allocator) {
+func (s *arenaByteBufferWithErrorLimitationsAllocationCheckingStand) check(t *testing.T, target allocator) {
 	initialAvailableBytes := target.Metrics().AvailableBytes
-	buf := arena.NewBuffer(target)
+	buf := arena.NewBufferWithError(target)
 	{
 		n, allocErr := buf.Write(make([]byte, initialAvailableBytes+1))
 		assert(allocErr != nil, "allocation limit should be triggered")
