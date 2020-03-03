@@ -20,14 +20,12 @@ go run ./cmd/internal itself
 
 TODO:
 First Release scope
-1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
 1. remove notion of offset from all arenas
 1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
 1. mention thread safety in documentation, and share of arena allocated resources between goroutines
 1. add sub-slicing to the generated code and arena.Bytes
 1. documentation for the generated code
-1. tests with '-d=checkptr'
 
 Second Release
 1. arena map on top of linear hashing alg
@@ -60,5 +58,7 @@ Done:
     1. Arena string allocation option from passed []byte
     1. Optimization of append to consecutive byte slices where we try to fit allocation in currently available buffer
 1. Code generation - take into account the observability of specified structure
-1. Ooption to clean a underlying arena during clear in Generic allocator
+1. Option to clean a underlying arena during clear in Generic allocator
 1. Make sure that Append works on top of "empty" slices
+1. Tests with '-d=checkptr'
+1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
