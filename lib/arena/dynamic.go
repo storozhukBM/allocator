@@ -34,6 +34,8 @@ type DynamicAllocator struct {
 	onHeapAllocations int
 
 	arenaMask uint16
+
+	zeroPointerTarget [1]byte
 }
 
 // NewDynamicAllocator creates an instance of arena.DynamicAllocator.
@@ -98,6 +100,9 @@ func (a *DynamicAllocator) ToRef(p Ptr) unsafe.Pointer {
 	if p.bucketIdx != uint8(a.currentArenaIdx) {
 		targetArena = a.arenas[p.bucketIdx]
 	}
+	if targetArena.buffer == nil && p.offset == 0 {
+		return unsafe.Pointer(&a.zeroPointerTarget[0])
+	}
 	return targetArena.ToRef(p)
 }
 
@@ -132,17 +137,11 @@ func (a *DynamicAllocator) Clear() {
 			a.freeListOfClearArenas = append(a.freeListOfClearArenas, ar)
 		}
 	}
-	a.arenas = nil
+	a.arenas = a.arenas[:0]
 
 	sort.Slice(a.freeListOfClearArenas, func(i, j int) bool {
 		return a.freeListOfClearArenas[i].Metrics().MaxCapacity < a.freeListOfClearArenas[j].Metrics().MaxCapacity
 	})
-
-	a.currentArena = a.freeListOfClearArenas[0]
-	if len(a.freeListOfClearArenas) > 1 {
-		a.freeListOfClearArenas[0] = RawAllocator{}
-		a.freeListOfClearArenas = a.freeListOfClearArenas[1:]
-	}
 
 	a.currentArenaIdx = 0
 	a.usedBytes = 0

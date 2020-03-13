@@ -20,8 +20,6 @@ go run ./cmd/internal itself
 
 TODO:
 First Release scope
-1. remove notion of offset from all arenas
-1. bind arena to context.Context (with leak detector in future)
 1. whole documentation with notion of unsafe semantics
 1. mention thread safety in documentation, and share of arena allocated resources between goroutines
 1. add sub-slicing to the generated code and arena.Bytes
@@ -62,3 +60,4 @@ Done:
 1. Make sure that Append works on top of "empty" slices
 1. Tests with '-d=checkptr'
 1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
+1. Ability to bind arena to context.Context

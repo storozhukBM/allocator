@@ -603,6 +603,10 @@ func TestSimpleArenaWithDelegatedClear(t *testing.T) {
 
 func TestDynamicArena(t *testing.T) {
 	t.Parallel()
+
+	maskCheckingStand := &arenaMaskCheckingStand{}
+	maskCheckingStand.check(t, &arena.DynamicAllocator{})
+
 	a := &arena.DynamicAllocator{}
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
