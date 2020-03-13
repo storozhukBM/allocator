@@ -17,20 +17,50 @@ type internal{{.TypeNameWithUpperFirstLetter}}Allocator interface {
 	Metrics() arena.Metrics
 }
 
+// {{$ttName}}Ptr, which basically represents an offset of the allocated value {{$ttName}}
+// inside one of the arenas.
+//
+// {{$ttName}}Ptr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to {{$ttName}}View.Ptr methods.
+//
+// {{$ttName}}Ptr can be converted to *{{$ttName}} or dereferenced by using 
+// {{$ttName}}View.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internal{{.TypeNameWithUpperFirstLetter}}PtrView.DeRef
+// and internal{{.TypeNameWithUpperFirstLetter}}PtrView.ToRef
 type {{$ttName}}Ptr struct {
 	ptr arena.Ptr
 }
 
+// {{$ttName}}Buffer is an analog to []{{$ttName}}, 
+// but it represents a slice allocated inside one of the arenas.
+// {{$ttName}}Buffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to {{$ttName}}View.Buffer methods.
+//
+// {{$ttName}}Buffer can be converted to []{{$ttName}}
+// by using {{$ttName}}View.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type {{$ttName}}Buffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]{{$ttName}})
 func (s {{$ttName}}Buffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]{{$ttName}})
 func (s {{$ttName}}Buffer) Cap() int {
 	return s.cap
 }
