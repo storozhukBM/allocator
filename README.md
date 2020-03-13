@@ -60,4 +60,3 @@ Done:
 1. Make sure that Append works on top of "empty" slices
 1. Tests with '-d=checkptr'
 1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
-1. Ability to bind arena to context.Context

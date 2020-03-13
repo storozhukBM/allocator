@@ -6,7 +6,7 @@ import (
 	"unsafe"
 )
 
-type Allocator interface {
+type allocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
 	CurrentOffset() Offset
 	ToRef(p Ptr) unsafe.Pointer
@@ -30,7 +30,7 @@ type Allocator interface {
 // General advice would be to use this GenericAllocator by default,
 // and refer to other implementations only if you really need to.
 type GenericAllocator struct {
-	target    Allocator
+	target    allocator
 	arenaMask uint16
 
 	delegateClear          bool
@@ -85,7 +85,7 @@ func NewGenericAllocator(opts Options) *GenericAllocator {
 // You can also set separate limits for the new sub-allocator.
 //
 // Sub-allocator delegates almost all operations to its underlying allocator called target.
-func NewSubAllocator(target Allocator, opts Options) *GenericAllocator {
+func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 	if target == nil {
 		target = NewGenericAllocator(opts)
 	}
