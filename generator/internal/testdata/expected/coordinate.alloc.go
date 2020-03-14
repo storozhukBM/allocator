@@ -13,30 +13,69 @@ type internalCoordinateAllocator interface {
 	Metrics() arena.Metrics
 }
 
+// coordinatePtr, which basically represents an offset of the allocated value coordinate
+// inside one of the arenas.
+//
+// coordinatePtr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to coordinateView.Ptr methods.
+//
+// coordinatePtr can be converted to *coordinate or dereferenced by using
+// coordinateView.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internalCoordinatePtrView.DeRef
+// and internalCoordinatePtrView.ToRef
 type coordinatePtr struct {
 	ptr arena.Ptr
 }
 
+// coordinateBuffer is an analog to []coordinate,
+// but it represents a slice allocated inside one of the arenas.
+// coordinateBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to coordinateView.Buffer methods.
+//
+// coordinateBuffer can be converted to []coordinate
+// by using coordinateView.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type coordinateBuffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]coordinate)
 func (s coordinateBuffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]coordinate)
 func (s coordinateBuffer) Cap() int {
 	return s.cap
 }
 
+// coordinateView is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate coordinate, its slices and buffers inside target allocator.
+//
+// coordinateView contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with coordinatePtr structures.
+// Slice - to allocate []coordinate inside target allocator.
+// Buffer - to allocate and operate with coordinateBuffer inside target allocator.
 type coordinateView struct {
 	Ptr    internalCoordinatePtrView
 	Slice  internalCoordinateSliceView
 	Buffer internalCoordinateBufferView
 }
 
+// newCoordinateView creates allocation view on top of target allocator
 func newCoordinateView(alloc internalCoordinateAllocator) *coordinateView {
 	if alloc == nil {
 		state := internalCoordinateState{alloc: &arena.GenericAllocator{}}
@@ -58,6 +97,8 @@ type internalCoordinatePtrView struct {
 	state internalCoordinateState
 }
 
+// New allocates coordinate inside target allocator and returns coordinatePtr to it.
+// coordinatePtr can be converted to *coordinate or dereferenced by using other methods of this view.
 func (s *internalCoordinatePtrView) New() (coordinatePtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -67,6 +108,8 @@ func (s *internalCoordinatePtrView) New() (coordinatePtr, error) {
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns coordinatePtr to it.
+// coordinatePtr can be converted to *coordinate or dereferenced by using other methods of this view.
 func (s *internalCoordinatePtrView) Embed(value coordinate) (coordinatePtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -78,12 +121,15 @@ func (s *internalCoordinatePtrView) Embed(value coordinate) (coordinatePtr, erro
 	return ptr, nil
 }
 
+// DeRef returns value of coordinate referenced by coordinatePtr.
 func (s *internalCoordinatePtrView) DeRef(allocPtr coordinatePtr) coordinate {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*coordinate)(ref)
 	return *valuePtr
 }
 
+// ToRef converts coordinatePtr to *coordinate but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCoordinatePtrView) ToRef(allocPtr coordinatePtr) *coordinate {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*coordinate)(ref)
@@ -94,6 +140,13 @@ type internalCoordinateSliceView struct {
 	state internalCoordinateState
 }
 
+// Make is an analog to make([]coordinate, len), but it allocates this slice in the underlying arena.
+// Resulting []coordinate can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
+// For make([]coordinate, len, cap) method please refer to the MakeWithCapacity.
 func (s *internalCoordinateSliceView) Make(len int) ([]coordinate, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -102,6 +155,13 @@ func (s *internalCoordinateSliceView) Make(len int) ([]coordinate, error) {
 	return *(*[]coordinate)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]coordinate, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []coordinate can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
 func (s *internalCoordinateSliceView) MakeWithCapacity(length int, capacity int) ([]coordinate, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -114,6 +174,8 @@ func (s *internalCoordinateSliceView) MakeWithCapacity(length int, capacity int)
 	return *(*[]coordinate)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]coordinate, ...coordinate),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCoordinateSliceView) Append(slice []coordinate, elemsToAppend ...coordinate) ([]coordinate, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -181,6 +243,18 @@ type internalCoordinateBufferView struct {
 	state internalCoordinateState
 }
 
+// Make is an analog to make([]coordinate, len),
+// but it allocates this slice in the underlying arena,
+// and returns coordinateBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// coordinateBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]coordinate, len, cap)
+// and append([]coordinate, ...coordinate) analogs
+// please refer to other methods of this subview.
 func (s *internalCoordinateBufferView) Make(len int) (coordinateBuffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -189,6 +263,18 @@ func (s *internalCoordinateBufferView) Make(len int) (coordinateBuffer, error) {
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]coordinate, len, cap),
+// but it allocates this slice in the underlying arena,
+// and returns coordinateBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// coordinateBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]coordinate, len)
+// and append([]coordinate, ...coordinate) analogs
+// please refer to other methods of this subview.
 func (s *internalCoordinateBufferView) MakeWithCapacity(length int,
 	capacity int) (coordinateBuffer, error) {
 	if capacity < length {
@@ -202,6 +288,8 @@ func (s *internalCoordinateBufferView) MakeWithCapacity(length int,
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]coordinate, ...coordinate),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCoordinateBufferView) Append(
 	slice coordinateBuffer,
 	elemsToAppend ...coordinate,
@@ -217,6 +305,8 @@ func (s *internalCoordinateBufferView) Append(
 	return target, nil
 }
 
+// ToRef converts coordinateBuffer to []coordinate but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCoordinateBufferView) ToRef(slice coordinateBuffer) []coordinate {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{

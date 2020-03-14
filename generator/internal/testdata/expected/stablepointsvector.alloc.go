@@ -13,30 +13,69 @@ type internalStablePointsVectorAllocator interface {
 	Metrics() arena.Metrics
 }
 
+// StablePointsVectorPtr, which basically represents an offset of the allocated value StablePointsVector
+// inside one of the arenas.
+//
+// StablePointsVectorPtr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to StablePointsVectorView.Ptr methods.
+//
+// StablePointsVectorPtr can be converted to *StablePointsVector or dereferenced by using
+// StablePointsVectorView.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internalStablePointsVectorPtrView.DeRef
+// and internalStablePointsVectorPtrView.ToRef
 type StablePointsVectorPtr struct {
 	ptr arena.Ptr
 }
 
+// StablePointsVectorBuffer is an analog to []StablePointsVector,
+// but it represents a slice allocated inside one of the arenas.
+// StablePointsVectorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to StablePointsVectorView.Buffer methods.
+//
+// StablePointsVectorBuffer can be converted to []StablePointsVector
+// by using StablePointsVectorView.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type StablePointsVectorBuffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]StablePointsVector)
 func (s StablePointsVectorBuffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]StablePointsVector)
 func (s StablePointsVectorBuffer) Cap() int {
 	return s.cap
 }
 
+// StablePointsVectorView is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate StablePointsVector, its slices and buffers inside target allocator.
+//
+// StablePointsVectorView contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with StablePointsVectorPtr structures.
+// Slice - to allocate []StablePointsVector inside target allocator.
+// Buffer - to allocate and operate with StablePointsVectorBuffer inside target allocator.
 type StablePointsVectorView struct {
 	Ptr    internalStablePointsVectorPtrView
 	Slice  internalStablePointsVectorSliceView
 	Buffer internalStablePointsVectorBufferView
 }
 
+// NewStablePointsVectorView creates allocation view on top of target allocator
 func NewStablePointsVectorView(alloc internalStablePointsVectorAllocator) *StablePointsVectorView {
 	if alloc == nil {
 		state := internalStablePointsVectorState{alloc: &arena.GenericAllocator{}}
@@ -58,6 +97,8 @@ type internalStablePointsVectorPtrView struct {
 	state internalStablePointsVectorState
 }
 
+// New allocates StablePointsVector inside target allocator and returns StablePointsVectorPtr to it.
+// StablePointsVectorPtr can be converted to *StablePointsVector or dereferenced by using other methods of this view.
 func (s *internalStablePointsVectorPtrView) New() (StablePointsVectorPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -67,6 +108,8 @@ func (s *internalStablePointsVectorPtrView) New() (StablePointsVectorPtr, error)
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns StablePointsVectorPtr to it.
+// StablePointsVectorPtr can be converted to *StablePointsVector or dereferenced by using other methods of this view.
 func (s *internalStablePointsVectorPtrView) Embed(value StablePointsVector) (StablePointsVectorPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -78,12 +121,15 @@ func (s *internalStablePointsVectorPtrView) Embed(value StablePointsVector) (Sta
 	return ptr, nil
 }
 
+// DeRef returns value of StablePointsVector referenced by StablePointsVectorPtr.
 func (s *internalStablePointsVectorPtrView) DeRef(allocPtr StablePointsVectorPtr) StablePointsVector {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*StablePointsVector)(ref)
 	return *valuePtr
 }
 
+// ToRef converts StablePointsVectorPtr to *StablePointsVector but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalStablePointsVectorPtrView) ToRef(allocPtr StablePointsVectorPtr) *StablePointsVector {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*StablePointsVector)(ref)
@@ -94,6 +140,13 @@ type internalStablePointsVectorSliceView struct {
 	state internalStablePointsVectorState
 }
 
+// Make is an analog to make([]StablePointsVector, len), but it allocates this slice in the underlying arena.
+// Resulting []StablePointsVector can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
+// For make([]StablePointsVector, len, cap) method please refer to the MakeWithCapacity.
 func (s *internalStablePointsVectorSliceView) Make(len int) ([]StablePointsVector, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -102,6 +155,13 @@ func (s *internalStablePointsVectorSliceView) Make(len int) ([]StablePointsVecto
 	return *(*[]StablePointsVector)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]StablePointsVector, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []StablePointsVector can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
 func (s *internalStablePointsVectorSliceView) MakeWithCapacity(length int, capacity int) ([]StablePointsVector, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -114,6 +174,8 @@ func (s *internalStablePointsVectorSliceView) MakeWithCapacity(length int, capac
 	return *(*[]StablePointsVector)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]StablePointsVector, ...StablePointsVector),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalStablePointsVectorSliceView) Append(slice []StablePointsVector, elemsToAppend ...StablePointsVector) ([]StablePointsVector, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -181,6 +243,18 @@ type internalStablePointsVectorBufferView struct {
 	state internalStablePointsVectorState
 }
 
+// Make is an analog to make([]StablePointsVector, len),
+// but it allocates this slice in the underlying arena,
+// and returns StablePointsVectorBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// StablePointsVectorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]StablePointsVector, len, cap)
+// and append([]StablePointsVector, ...StablePointsVector) analogs
+// please refer to other methods of this subview.
 func (s *internalStablePointsVectorBufferView) Make(len int) (StablePointsVectorBuffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -189,6 +263,18 @@ func (s *internalStablePointsVectorBufferView) Make(len int) (StablePointsVector
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]StablePointsVector, len, cap),
+// but it allocates this slice in the underlying arena,
+// and returns StablePointsVectorBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// StablePointsVectorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]StablePointsVector, len)
+// and append([]StablePointsVector, ...StablePointsVector) analogs
+// please refer to other methods of this subview.
 func (s *internalStablePointsVectorBufferView) MakeWithCapacity(length int,
 	capacity int) (StablePointsVectorBuffer, error) {
 	if capacity < length {
@@ -202,6 +288,8 @@ func (s *internalStablePointsVectorBufferView) MakeWithCapacity(length int,
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]StablePointsVector, ...StablePointsVector),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalStablePointsVectorBufferView) Append(
 	slice StablePointsVectorBuffer,
 	elemsToAppend ...StablePointsVector,
@@ -217,6 +305,8 @@ func (s *internalStablePointsVectorBufferView) Append(
 	return target, nil
 }
 
+// ToRef converts StablePointsVectorBuffer to []StablePointsVector but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalStablePointsVectorBufferView) ToRef(slice StablePointsVectorBuffer) []StablePointsVector {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{

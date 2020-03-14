@@ -13,30 +13,69 @@ type internalCircleColorAllocator interface {
 	Metrics() arena.Metrics
 }
 
+// CircleColorPtr, which basically represents an offset of the allocated value CircleColor
+// inside one of the arenas.
+//
+// CircleColorPtr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to CircleColorView.Ptr methods.
+//
+// CircleColorPtr can be converted to *CircleColor or dereferenced by using
+// CircleColorView.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internalCircleColorPtrView.DeRef
+// and internalCircleColorPtrView.ToRef
 type CircleColorPtr struct {
 	ptr arena.Ptr
 }
 
+// CircleColorBuffer is an analog to []CircleColor,
+// but it represents a slice allocated inside one of the arenas.
+// CircleColorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to CircleColorView.Buffer methods.
+//
+// CircleColorBuffer can be converted to []CircleColor
+// by using CircleColorView.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type CircleColorBuffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]CircleColor)
 func (s CircleColorBuffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]CircleColor)
 func (s CircleColorBuffer) Cap() int {
 	return s.cap
 }
 
+// CircleColorView is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate CircleColor, its slices and buffers inside target allocator.
+//
+// CircleColorView contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with CircleColorPtr structures.
+// Slice - to allocate []CircleColor inside target allocator.
+// Buffer - to allocate and operate with CircleColorBuffer inside target allocator.
 type CircleColorView struct {
 	Ptr    internalCircleColorPtrView
 	Slice  internalCircleColorSliceView
 	Buffer internalCircleColorBufferView
 }
 
+// NewCircleColorView creates allocation view on top of target allocator
 func NewCircleColorView(alloc internalCircleColorAllocator) *CircleColorView {
 	if alloc == nil {
 		state := internalCircleColorState{alloc: &arena.GenericAllocator{}}
@@ -58,6 +97,8 @@ type internalCircleColorPtrView struct {
 	state internalCircleColorState
 }
 
+// New allocates CircleColor inside target allocator and returns CircleColorPtr to it.
+// CircleColorPtr can be converted to *CircleColor or dereferenced by using other methods of this view.
 func (s *internalCircleColorPtrView) New() (CircleColorPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -67,6 +108,8 @@ func (s *internalCircleColorPtrView) New() (CircleColorPtr, error) {
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns CircleColorPtr to it.
+// CircleColorPtr can be converted to *CircleColor or dereferenced by using other methods of this view.
 func (s *internalCircleColorPtrView) Embed(value CircleColor) (CircleColorPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -78,12 +121,15 @@ func (s *internalCircleColorPtrView) Embed(value CircleColor) (CircleColorPtr, e
 	return ptr, nil
 }
 
+// DeRef returns value of CircleColor referenced by CircleColorPtr.
 func (s *internalCircleColorPtrView) DeRef(allocPtr CircleColorPtr) CircleColor {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*CircleColor)(ref)
 	return *valuePtr
 }
 
+// ToRef converts CircleColorPtr to *CircleColor but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCircleColorPtrView) ToRef(allocPtr CircleColorPtr) *CircleColor {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*CircleColor)(ref)
@@ -94,6 +140,13 @@ type internalCircleColorSliceView struct {
 	state internalCircleColorState
 }
 
+// Make is an analog to make([]CircleColor, len), but it allocates this slice in the underlying arena.
+// Resulting []CircleColor can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
+// For make([]CircleColor, len, cap) method please refer to the MakeWithCapacity.
 func (s *internalCircleColorSliceView) Make(len int) ([]CircleColor, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -102,6 +155,13 @@ func (s *internalCircleColorSliceView) Make(len int) ([]CircleColor, error) {
 	return *(*[]CircleColor)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]CircleColor, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []CircleColor can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
 func (s *internalCircleColorSliceView) MakeWithCapacity(length int, capacity int) ([]CircleColor, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -114,6 +174,8 @@ func (s *internalCircleColorSliceView) MakeWithCapacity(length int, capacity int
 	return *(*[]CircleColor)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]CircleColor, ...CircleColor),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCircleColorSliceView) Append(slice []CircleColor, elemsToAppend ...CircleColor) ([]CircleColor, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -181,6 +243,18 @@ type internalCircleColorBufferView struct {
 	state internalCircleColorState
 }
 
+// Make is an analog to make([]CircleColor, len),
+// but it allocates this slice in the underlying arena,
+// and returns CircleColorBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// CircleColorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]CircleColor, len, cap)
+// and append([]CircleColor, ...CircleColor) analogs
+// please refer to other methods of this subview.
 func (s *internalCircleColorBufferView) Make(len int) (CircleColorBuffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -189,6 +263,18 @@ func (s *internalCircleColorBufferView) Make(len int) (CircleColorBuffer, error)
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]CircleColor, len, cap),
+// but it allocates this slice in the underlying arena,
+// and returns CircleColorBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// CircleColorBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]CircleColor, len)
+// and append([]CircleColor, ...CircleColor) analogs
+// please refer to other methods of this subview.
 func (s *internalCircleColorBufferView) MakeWithCapacity(length int,
 	capacity int) (CircleColorBuffer, error) {
 	if capacity < length {
@@ -202,6 +288,8 @@ func (s *internalCircleColorBufferView) MakeWithCapacity(length int,
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]CircleColor, ...CircleColor),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCircleColorBufferView) Append(
 	slice CircleColorBuffer,
 	elemsToAppend ...CircleColor,
@@ -217,6 +305,8 @@ func (s *internalCircleColorBufferView) Append(
 	return target, nil
 }
 
+// ToRef converts CircleColorBuffer to []CircleColor but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCircleColorBufferView) ToRef(slice CircleColorBuffer) []CircleColor {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{
