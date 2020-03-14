@@ -13,30 +13,69 @@ type internalPointAllocator interface {
 	Metrics() arena.Metrics
 }
 
+// PointPtr, which basically represents an offset of the allocated value Point
+// inside one of the arenas.
+//
+// PointPtr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to PointView.Ptr methods.
+//
+// PointPtr can be converted to *Point or dereferenced by using
+// PointView.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internalPointPtrView.DeRef
+// and internalPointPtrView.ToRef
 type PointPtr struct {
 	ptr arena.Ptr
 }
 
+// PointBuffer is an analog to []Point,
+// but it represents a slice allocated inside one of the arenas.
+// PointBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to PointView.Buffer methods.
+//
+// PointBuffer can be converted to []Point
+// by using PointView.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type PointBuffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]Point)
 func (s PointBuffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]Point)
 func (s PointBuffer) Cap() int {
 	return s.cap
 }
 
+// PointView is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate Point, its slices and buffers inside target allocator.
+//
+// PointView contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with PointPtr structures.
+// Slice - to allocate []Point inside target allocator.
+// Buffer - to allocate and operate with PointBuffer inside target allocator.
 type PointView struct {
 	Ptr    internalPointPtrView
 	Slice  internalPointSliceView
 	Buffer internalPointBufferView
 }
 
+// NewPointView creates allocation view on top of target allocator
 func NewPointView(alloc internalPointAllocator) *PointView {
 	if alloc == nil {
 		state := internalPointState{alloc: &arena.GenericAllocator{}}
@@ -58,6 +97,8 @@ type internalPointPtrView struct {
 	state internalPointState
 }
 
+// New allocates Point inside target allocator and returns PointPtr to it.
+// PointPtr can be converted to *Point or dereferenced by using other methods of this view.
 func (s *internalPointPtrView) New() (PointPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -67,6 +108,8 @@ func (s *internalPointPtrView) New() (PointPtr, error) {
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns PointPtr to it.
+// PointPtr can be converted to *Point or dereferenced by using other methods of this view.
 func (s *internalPointPtrView) Embed(value Point) (PointPtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -78,12 +121,15 @@ func (s *internalPointPtrView) Embed(value Point) (PointPtr, error) {
 	return ptr, nil
 }
 
+// DeRef returns value of Point referenced by PointPtr.
 func (s *internalPointPtrView) DeRef(allocPtr PointPtr) Point {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*Point)(ref)
 	return *valuePtr
 }
 
+// ToRef converts PointPtr to *Point but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalPointPtrView) ToRef(allocPtr PointPtr) *Point {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*Point)(ref)
@@ -94,6 +140,13 @@ type internalPointSliceView struct {
 	state internalPointState
 }
 
+// Make is an analog to make([]Point, len), but it allocates this slice in the underlying arena.
+// Resulting []Point can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
+// For make([]Point, len, cap) method please refer to the MakeWithCapacity.
 func (s *internalPointSliceView) Make(len int) ([]Point, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -102,6 +155,13 @@ func (s *internalPointSliceView) Make(len int) ([]Point, error) {
 	return *(*[]Point)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]Point, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []Point can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
 func (s *internalPointSliceView) MakeWithCapacity(length int, capacity int) ([]Point, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -114,6 +174,8 @@ func (s *internalPointSliceView) MakeWithCapacity(length int, capacity int) ([]P
 	return *(*[]Point)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]Point, ...Point),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalPointSliceView) Append(slice []Point, elemsToAppend ...Point) ([]Point, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -181,6 +243,18 @@ type internalPointBufferView struct {
 	state internalPointState
 }
 
+// Make is an analog to make([]Point, len),
+// but it allocates this slice in the underlying arena,
+// and returns PointBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// PointBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]Point, len, cap)
+// and append([]Point, ...Point) analogs
+// please refer to other methods of this subview.
 func (s *internalPointBufferView) Make(len int) (PointBuffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -189,6 +263,18 @@ func (s *internalPointBufferView) Make(len int) (PointBuffer, error) {
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]Point, len, cap),
+// but it allocates this slice in the underlying arena,
+// and returns PointBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// PointBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]Point, len)
+// and append([]Point, ...Point) analogs
+// please refer to other methods of this subview.
 func (s *internalPointBufferView) MakeWithCapacity(length int,
 	capacity int) (PointBuffer, error) {
 	if capacity < length {
@@ -202,6 +288,8 @@ func (s *internalPointBufferView) MakeWithCapacity(length int,
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]Point, ...Point),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalPointBufferView) Append(
 	slice PointBuffer,
 	elemsToAppend ...Point,
@@ -217,6 +305,8 @@ func (s *internalPointBufferView) Append(
 	return target, nil
 }
 
+// ToRef converts PointBuffer to []Point but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalPointBufferView) ToRef(slice PointBuffer) []Point {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{

@@ -13,30 +13,69 @@ type internalCircleAllocator interface {
 	Metrics() arena.Metrics
 }
 
+// CirclePtr, which basically represents an offset of the allocated value Circle
+// inside one of the arenas.
+//
+// CirclePtr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation methods please refer to CircleView.Ptr methods.
+//
+// CirclePtr can be converted to *Circle or dereferenced by using
+// CircleView.Ptr methods, but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
+//
+// For detailed documentation please refer to
+// internalCirclePtrView.DeRef
+// and internalCirclePtrView.ToRef
 type CirclePtr struct {
 	ptr arena.Ptr
 }
 
+// CircleBuffer is an analog to []Circle,
+// but it represents a slice allocated inside one of the arenas.
+// CircleBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For allocation and append methods please refer to CircleView.Buffer methods.
+//
+// CircleBuffer can be converted to []Circle
+// by using CircleView.Buffer.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
 type CircleBuffer struct {
 	data arena.Ptr
 	len  int
 	cap  int
 }
 
+// Len is direct analog to len([]Circle)
 func (s CircleBuffer) Len() int {
 	return s.len
 }
 
+// Cap is direct analog to cap([]Circle)
 func (s CircleBuffer) Cap() int {
 	return s.cap
 }
 
+// CircleView is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate Circle, its slices and buffers inside target allocator.
+//
+// CircleView contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with CirclePtr structures.
+// Slice - to allocate []Circle inside target allocator.
+// Buffer - to allocate and operate with CircleBuffer inside target allocator.
 type CircleView struct {
 	Ptr    internalCirclePtrView
 	Slice  internalCircleSliceView
 	Buffer internalCircleBufferView
 }
 
+// NewCircleView creates allocation view on top of target allocator
 func NewCircleView(alloc internalCircleAllocator) *CircleView {
 	if alloc == nil {
 		state := internalCircleState{alloc: &arena.GenericAllocator{}}
@@ -58,6 +97,8 @@ type internalCirclePtrView struct {
 	state internalCircleState
 }
 
+// New allocates Circle inside target allocator and returns CirclePtr to it.
+// CirclePtr can be converted to *Circle or dereferenced by using other methods of this view.
 func (s *internalCirclePtrView) New() (CirclePtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -67,6 +108,8 @@ func (s *internalCirclePtrView) New() (CirclePtr, error) {
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns CirclePtr to it.
+// CirclePtr can be converted to *Circle or dereferenced by using other methods of this view.
 func (s *internalCirclePtrView) Embed(value Circle) (CirclePtr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -78,12 +121,15 @@ func (s *internalCirclePtrView) Embed(value Circle) (CirclePtr, error) {
 	return ptr, nil
 }
 
+// DeRef returns value of Circle referenced by CirclePtr.
 func (s *internalCirclePtrView) DeRef(allocPtr CirclePtr) Circle {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*Circle)(ref)
 	return *valuePtr
 }
 
+// ToRef converts CirclePtr to *Circle but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCirclePtrView) ToRef(allocPtr CirclePtr) *Circle {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*Circle)(ref)
@@ -94,6 +140,13 @@ type internalCircleSliceView struct {
 	state internalCircleState
 }
 
+// Make is an analog to make([]Circle, len), but it allocates this slice in the underlying arena.
+// Resulting []Circle can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
+// For make([]Circle, len, cap) method please refer to the MakeWithCapacity.
 func (s *internalCircleSliceView) Make(len int) ([]Circle, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -102,6 +155,13 @@ func (s *internalCircleSliceView) Make(len int) ([]Circle, error) {
 	return *(*[]Circle)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]Circle, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []Circle can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function,
+// or if you want all other contiguous allocations to happen in the same target allocator,
+// please refer to the Append method.
 func (s *internalCircleSliceView) MakeWithCapacity(length int, capacity int) ([]Circle, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -114,6 +174,8 @@ func (s *internalCircleSliceView) MakeWithCapacity(length int, capacity int) ([]
 	return *(*[]Circle)(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]Circle, ...Circle),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCircleSliceView) Append(slice []Circle, elemsToAppend ...Circle) ([]Circle, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -181,6 +243,18 @@ type internalCircleBufferView struct {
 	state internalCircleState
 }
 
+// Make is an analog to make([]Circle, len),
+// but it allocates this slice in the underlying arena,
+// and returns CircleBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// CircleBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]Circle, len, cap)
+// and append([]Circle, ...Circle) analogs
+// please refer to other methods of this subview.
 func (s *internalCircleBufferView) Make(len int) (CircleBuffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -189,6 +263,18 @@ func (s *internalCircleBufferView) Make(len int) (CircleBuffer, error) {
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]Circle, len, cap),
+// but it allocates this slice in the underlying arena,
+// and returns CircleBuffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+//
+// CircleBuffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]Circle, len)
+// and append([]Circle, ...Circle) analogs
+// please refer to other methods of this subview.
 func (s *internalCircleBufferView) MakeWithCapacity(length int,
 	capacity int) (CircleBuffer, error) {
 	if capacity < length {
@@ -202,6 +288,8 @@ func (s *internalCircleBufferView) MakeWithCapacity(length int,
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]Circle, ...Circle),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internalCircleBufferView) Append(
 	slice CircleBuffer,
 	elemsToAppend ...Circle,
@@ -217,6 +305,8 @@ func (s *internalCircleBufferView) Append(
 	return target, nil
 }
 
+// ToRef converts CircleBuffer to []Circle but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCircleBufferView) ToRef(slice CircleBuffer) []Circle {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{

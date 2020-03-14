@@ -65,6 +65,14 @@ func (s {{$ttName}}Buffer) Cap() int {
 	return s.cap
 }
 
+// {{$ttName}}View is an allocation view that can be constructed on top of the target allocator
+// and then used to allocate {{$ttName}}, its slices and buffers inside target allocator.
+//
+// {{$ttName}}View contains 3 subviews in form on fields.
+//
+// Ptr - subview to allocate and operate with {{$ttName}}Ptr structures.
+// Slice - to allocate []{{$ttName}} inside target allocator.
+// Buffer - to allocate and operate with {{$ttName}}Buffer inside target allocator.
 type {{$ttName}}View struct {
 	Ptr    internal{{.TypeNameWithUpperFirstLetter}}PtrView
 	Slice  internal{{.TypeNameWithUpperFirstLetter}}SliceView
@@ -72,8 +80,10 @@ type {{$ttName}}View struct {
 }
 
 {{ if .Exported}}
+// New{{.TypeNameWithUpperFirstLetter}}View creates allocation view on top of target allocator
 func New{{.TypeNameWithUpperFirstLetter}}View(alloc internal{{.TypeNameWithUpperFirstLetter}}Allocator) *{{$ttName}}View {
 {{- else}}
+// new{{.TypeNameWithUpperFirstLetter}}View creates allocation view on top of target allocator
 func new{{.TypeNameWithUpperFirstLetter}}View(alloc internal{{.TypeNameWithUpperFirstLetter}}Allocator) *{{$ttName}}View {
 {{- end}}
 	if alloc == nil {
@@ -96,6 +106,8 @@ type internal{{.TypeNameWithUpperFirstLetter}}PtrView struct {
 	state internal{{.TypeNameWithUpperFirstLetter}}State
 }
 
+// New allocates {{$ttName}} inside target allocator and returns {{$ttName}}Ptr to it.
+// {{$ttName}}Ptr can be converted to *{{$ttName}} or dereferenced by using other methods of this view.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) New() ({{$ttName}}Ptr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -105,6 +117,8 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) New() ({{$ttName}}Ptr
 	return ptr, nil
 }
 
+// Embed copies passed value inside target allocator, and returns {{$ttName}}Ptr to it.
+// {{$ttName}}Ptr can be converted to *{{$ttName}} or dereferenced by using other methods of this view.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) Embed(value {{$ttName}}) ({{$ttName}}Ptr, error) {
 	slice, allocErr := s.state.makeSlice(1)
 	if allocErr != nil {
@@ -116,12 +130,15 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) Embed(value {{$ttName
 	return ptr, nil
 }
 
+// DeRef returns value of {{$ttName}} referenced by {{$ttName}}Ptr.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) DeRef(allocPtr {{$ttName}}Ptr) ({{$ttName}}) {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*{{$ttName}})(ref)
 	return *valuePtr
 }
 
+// ToRef converts {{$ttName}}Ptr to *{{$ttName}} but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}PtrView) ToRef(allocPtr {{$ttName}}Ptr) (*{{$ttName}}) {
 	ref := s.state.alloc.ToRef(allocPtr.ptr)
 	valuePtr := (*{{$ttName}})(ref)
@@ -132,6 +149,13 @@ type internal{{.TypeNameWithUpperFirstLetter}}SliceView struct {
 	state internal{{.TypeNameWithUpperFirstLetter}}State
 }
 
+// Make is an analog to make([]{{$ttName}}, len), but it allocates this slice in the underlying arena.
+// Resulting []{{$ttName}} can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function, 
+// or if you want all other contiguous allocations to happen in the same target allocator, 
+// please refer to the Append method. 
+// For make([]{{$ttName}}, len, cap) method please refer to the MakeWithCapacity.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) Make(len int) ([]{{$ttName}}, error) {
 	sliceHdr, allocErr := s.makeGoSlice(len)
 	if allocErr != nil {
@@ -140,6 +164,13 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) Make(len int) ([]{{
 	return *(*[]{{$ttName}})(unsafe.Pointer(sliceHdr)), nil
 }
 
+// MakeWithCapacity is an analog to make([]{{$ttName}}, len, cap),
+// but it allocates this slice in the underlying arena.
+// Resulting []{{$ttName}} can be used in the same way as any Go slice can be used.
+//
+// You can append to it using Go builtin function, 
+// or if you want all other contiguous allocations to happen in the same target allocator, 
+// please refer to the Append method.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) MakeWithCapacity(length int, capacity int) ([]{{$ttName}}, error) {
 	if capacity < length {
 		return nil, arena.AllocationInvalidArgumentError
@@ -152,6 +183,8 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) MakeWithCapacity(le
 	return *(*[]{{$ttName}})(unsafe.Pointer(sliceHdr)), nil
 }
 
+// Append is an analog to append([]{{$ttName}}, ...{{$ttName}}),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) Append(slice []{{$ttName}}, elemsToAppend ...{{$ttName}}) ([]{{$ttName}}, error) {
 	target, allocErr := s.growIfNecessary(slice, len(elemsToAppend))
 	if allocErr != nil {
@@ -219,6 +252,18 @@ type internal{{.TypeNameWithUpperFirstLetter}}BufferView struct {
 	state internal{{.TypeNameWithUpperFirstLetter}}State
 }
 
+// Make is an analog to make([]{{$ttName}}, len), 
+// but it allocates this slice in the underlying arena,
+// and returns {{$ttName}}Buffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+// 
+// {{$ttName}}Buffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]{{$ttName}}, len, cap) 
+// and append([]{{$ttName}}, ...{{$ttName}}) analogs
+// please refer to other methods of this subview.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) Make(len int) ({{$ttName}}Buffer, error) {
 	sliceHdr, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
@@ -227,6 +272,18 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) Make(len int) ({{$
 	return sliceHdr, nil
 }
 
+// Make is an analog to make([]{{$ttName}}, len, cap), 
+// but it allocates this slice in the underlying arena,
+// and returns {{$ttName}}Buffer which is a simple representation
+// of a slice allocated inside one of the arenas.
+// 
+// {{$ttName}}Buffer is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// For make([]{{$ttName}}, len) 
+// and append([]{{$ttName}}, ...{{$ttName}}) analogs
+// please refer to other methods of this subview.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) MakeWithCapacity(length int, 
 capacity int) ({{$ttName}}Buffer, error) {
 	if capacity < length {
@@ -240,6 +297,8 @@ capacity int) ({{$ttName}}Buffer, error) {
 	return sliceHdr, nil
 }
 
+// Append is an analog to append([]{{$ttName}}, ...{{$ttName}}),
+// but in case if allocations necessary to proceed with append it allocates this new in the underlying arena.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) Append(
 		slice {{$ttName}}Buffer,
 		elemsToAppend ...{{$ttName}},
@@ -255,6 +314,8 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) Append(
 	return target, nil
 }
 
+// ToRef converts {{$ttName}}Buffer to []{{$ttName}} but we'd suggest to do it right before use
+// to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) ToRef(slice {{$ttName}}Buffer) []{{$ttName}} {
 	dataRef := s.state.alloc.ToRef(slice.data)
 	sliceHdr := reflect.SliceHeader{
