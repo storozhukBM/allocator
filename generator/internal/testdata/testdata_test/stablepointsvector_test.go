@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 	"unsafe"
 
@@ -263,6 +264,18 @@ func (s *arenaGenAllocationCheckingStand) verifyBufferAlloc(
 		eq(t, expectedVector, alloc.ToRef(arenaPointsVector), "should be equal")
 		eq(t, 7, arenaPointsVector.Len(), "len should be 7")
 		eq(t, true, arenaPointsVector.Cap() >= 7, "cap should be >= 7")
+	}
+	{
+		for l := -1; l < arenaPointsVector.Len()+1; l++ {
+			for h := -1; h < arenaPointsVector.Len()+1; h++ {
+				s.checkSubSlice(t, view, arenaPointsVector, l, h)
+			}
+		}
+	}
+	{
+		for i := -1; i < arenaPointsVector.Len()+1; i++ {
+			s.checkGet(t, view, arenaPointsVector, i)
+		}
 	}
 	{
 		arenaPointsVector, allocErr = alloc.Make(1)
@@ -558,6 +571,96 @@ func (s *arenaGenAllocationCheckingStand) verifySingleItemAllocation(t *testing.
 		eq(t, expectedVector, alloc.DeRef(pointsVectorPtr), "should be equal")
 		eq(t, int32(65), initVector.Points[2].X, "should be equal")
 	}
+}
+
+func (s *arenaGenAllocationCheckingStand) checkGet(
+	t *testing.T,
+	alloc *etalon.StablePointsVectorView, buffer etalon.StablePointsVectorBuffer,
+	idx int,
+) {
+	realSlice := alloc.Buffer.ToRef(buffer)
+	expected := s.idx(realSlice, idx)
+	actual := s.idxBuffer(alloc, buffer, idx)
+
+	outOfBoundsError := "runtime error: index out of range ["
+	if strings.HasPrefix(expected, outOfBoundsError) && strings.HasPrefix(actual, outOfBoundsError) {
+		return
+	}
+	eq(t, expected, actual, "should be the same")
+}
+
+func (s *arenaGenAllocationCheckingStand) idxBuffer(
+	alloc *etalon.StablePointsVectorView, buffer etalon.StablePointsVectorBuffer,
+	idx int,
+) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+			return
+		}
+	}()
+	value := alloc.Ptr.DeRef(buffer.Get(idx))
+	return fmt.Sprintf("val: `%v`", value)
+}
+
+func (s *arenaGenAllocationCheckingStand) idx(
+	slice []etalon.StablePointsVector, idx int,
+) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+			return
+		}
+	}()
+	value := slice[idx]
+	return fmt.Sprintf("val: `%v`", value)
+}
+
+func (s *arenaGenAllocationCheckingStand) checkSubSlice(
+	t *testing.T,
+	alloc *etalon.StablePointsVectorView, buffer etalon.StablePointsVectorBuffer,
+	low int, high int,
+) {
+	realSlice := alloc.Buffer.ToRef(buffer)
+	expected := s.subSlice(realSlice, low, high)
+	actual := s.subSliceBuffer(alloc, buffer, low, high)
+
+	outOfBoundsError := "runtime error: slice bounds out of range ["
+	if strings.HasPrefix(expected, outOfBoundsError) && strings.HasPrefix(actual, outOfBoundsError) {
+		return
+	}
+	eq(t, expected, actual, "should be the same")
+}
+
+func (s *arenaGenAllocationCheckingStand) subSliceBuffer(
+	alloc *etalon.StablePointsVectorView, buffer etalon.StablePointsVectorBuffer,
+	low int, high int,
+) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+			return
+		}
+	}()
+	slice := alloc.Buffer.ToRef(buffer.SubSlice(low, high))
+	return fmt.Sprintf("len: %v; cap: %v; val: `%v`", len(slice), cap(slice), slice)
+}
+
+func (s *arenaGenAllocationCheckingStand) subSlice(
+	slice []etalon.StablePointsVector, low int, high int,
+) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+			return
+		}
+	}()
+	subSlice := slice[low:high]
+	return fmt.Sprintf("len: %v; cap: %v; val: `%v`", len(subSlice), cap(subSlice), subSlice)
 }
 
 type arenaGenAllocationLimitCheckingStand struct{}

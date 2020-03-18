@@ -1,6 +1,7 @@
 package etalon
 
 import (
+	"fmt"
 	"reflect"
 	"unsafe"
 
@@ -59,6 +60,64 @@ func (s coordinateBuffer) Len() int {
 // Cap is direct analog to cap([]coordinate)
 func (s coordinateBuffer) Cap() int {
 	return s.cap
+}
+
+// SubSlice is an analog to []coordinate[low:high]
+// Returns sub-slice of the coordinateBuffer and panics in case of bounds out of range.
+func (s coordinateBuffer) SubSlice(low int, high int) coordinateBuffer {
+	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	if !inBounds {
+		panic(fmt.Errorf(
+			"runtime error: slice bounds out of range [%d:%d] with length %d",
+			low, high, s.len,
+		))
+	}
+	var tVar coordinate
+	tSize := unsafe.Sizeof(tVar)
+	type internalPtr struct {
+		offset    uint32
+		bucketIdx uint8
+		arenaMask uint16
+	}
+	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
+	newPtr := internalPtr{
+		offset:    currentPtr.offset + uint32(low*int(tSize)),
+		bucketIdx: currentPtr.bucketIdx,
+		arenaMask: currentPtr.arenaMask,
+	}
+	return coordinateBuffer{
+		data: *(*arena.Ptr)(unsafe.Pointer(&newPtr)),
+		len:  high - low,
+		cap:  s.cap - low,
+	}
+}
+
+// Get is an analog to []coordinate[idx]
+// Returns coordinatePtr and panics in case of idx out of range.
+func (s coordinateBuffer) Get(idx int) coordinatePtr {
+	inBounds := idx >= 0 && idx < int(s.len)
+	if !inBounds {
+		panic(fmt.Errorf(
+			"runtime error: index out of range [%d] with length %d",
+			idx, s.len,
+		))
+	}
+	var tVar coordinate
+	tSize := unsafe.Sizeof(tVar)
+	type internalPtr struct {
+		offset    uint32
+		bucketIdx uint8
+		arenaMask uint16
+	}
+	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
+	newPtr := internalPtr{
+		offset:    currentPtr.offset + uint32(idx*int(tSize)),
+		bucketIdx: currentPtr.bucketIdx,
+		arenaMask: currentPtr.arenaMask,
+	}
+	return coordinatePtr{
+		ptr: *(*arena.Ptr)(unsafe.Pointer(&newPtr)),
+	}
 }
 
 // coordinateView is an allocation view that can be constructed on top of the target allocator
