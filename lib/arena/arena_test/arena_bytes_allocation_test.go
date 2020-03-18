@@ -2,6 +2,8 @@ package arena_test
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/storozhukBM/allocator/lib/arena"
@@ -129,6 +131,65 @@ func (s *arenaByteAllocationCheckingStand) check(t *testing.T, target allocator)
 		result := alloc.BytesToStringRef(resultBytes)
 		assert(result == "sailor", "unexpected buffer state: %+v", result)
 	}
+
+	{
+		value := []byte("123456789")
+		bytesValue, allocErr := alloc.Embed(value)
+		failOnError(t, allocErr)
+
+		for l := -1; l < 10; l++ {
+			for h := -1; h < 10; h++ {
+				s.checkSlicing(alloc, bytesValue, value, l, h)
+			}
+		}
+	}
+}
+
+func (s *arenaByteAllocationCheckingStand) checkSlicing(allocator *arena.BytesView, bytesValue arena.Bytes, value []byte, low int, high int) {
+	assert(
+		string(value) == allocator.BytesToStringRef(bytesValue),
+		"exp: `%v`;\nact:`%v`", string(value), allocator.BytesToStringRef(bytesValue),
+	)
+
+	expected := s.subSlice(value, low, high)
+	actual := s.subSliceBytes(allocator, bytesValue, low, high)
+
+	outOfBoundsPrefix := "runtime error: slice bounds out of range ["
+	if strings.HasPrefix(expected, outOfBoundsPrefix) && strings.HasPrefix(actual, outOfBoundsPrefix) {
+		return
+	}
+	assert(
+		expected == actual, "value: `%v`; l: %v; h: %v;\nexp: %v\nact: %v",
+		value, low, high, expected, actual,
+	)
+}
+
+func (s *arenaByteAllocationCheckingStand) subSlice(value []byte, low int, high int) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+		}
+	}()
+	subslice := value[low:high]
+	expectedResult := s.printSliceProperties(subslice)
+	return expectedResult
+}
+
+func (s *arenaByteAllocationCheckingStand) subSliceBytes(allocator *arena.BytesView, value arena.Bytes, low int, high int) (result string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			result = fmt.Sprintf("%v", err)
+		}
+	}()
+	subslice := value.SubSlice(low, high)
+	expectedResult := s.printSliceProperties(allocator.BytesToRef(subslice))
+	return expectedResult
+}
+
+func (s *arenaByteAllocationCheckingStand) printSliceProperties(slice []byte) string {
+	return fmt.Sprintf("len: %v; cap: %v; value: `%v`", len(slice), cap(slice), string(slice))
 }
 
 type arenaByteAllocationLimitsCheckingStand struct{}

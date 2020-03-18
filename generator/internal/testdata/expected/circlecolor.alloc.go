@@ -1,6 +1,7 @@
 package etalon
 
 import (
+	"fmt"
 	"reflect"
 	"unsafe"
 
@@ -59,6 +60,64 @@ func (s CircleColorBuffer) Len() int {
 // Cap is direct analog to cap([]CircleColor)
 func (s CircleColorBuffer) Cap() int {
 	return s.cap
+}
+
+// SubSlice is an analog to []CircleColor[low:high]
+// Returns sub-slice of the CircleColorBuffer and panics in case of bounds out of range.
+func (s CircleColorBuffer) SubSlice(low int, high int) CircleColorBuffer {
+	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	if !inBounds {
+		panic(fmt.Errorf(
+			"runtime error: slice bounds out of range [%d:%d] with length %d",
+			low, high, s.len,
+		))
+	}
+	var tVar CircleColor
+	tSize := unsafe.Sizeof(tVar)
+	type internalPtr struct {
+		offset    uint32
+		bucketIdx uint8
+		arenaMask uint16
+	}
+	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
+	newPtr := internalPtr{
+		offset:    currentPtr.offset + uint32(low*int(tSize)),
+		bucketIdx: currentPtr.bucketIdx,
+		arenaMask: currentPtr.arenaMask,
+	}
+	return CircleColorBuffer{
+		data: *(*arena.Ptr)(unsafe.Pointer(&newPtr)),
+		len:  high - low,
+		cap:  s.cap - low,
+	}
+}
+
+// Get is an analog to []CircleColor[idx]
+// Returns CircleColorPtr and panics in case of idx out of range.
+func (s CircleColorBuffer) Get(idx int) CircleColorPtr {
+	inBounds := idx >= 0 && idx < int(s.len)
+	if !inBounds {
+		panic(fmt.Errorf(
+			"runtime error: index out of range [%d] with length %d",
+			idx, s.len,
+		))
+	}
+	var tVar CircleColor
+	tSize := unsafe.Sizeof(tVar)
+	type internalPtr struct {
+		offset    uint32
+		bucketIdx uint8
+		arenaMask uint16
+	}
+	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
+	newPtr := internalPtr{
+		offset:    currentPtr.offset + uint32(idx*int(tSize)),
+		bucketIdx: currentPtr.bucketIdx,
+		arenaMask: currentPtr.arenaMask,
+	}
+	return CircleColorPtr{
+		ptr: *(*arena.Ptr)(unsafe.Pointer(&newPtr)),
+	}
 }
 
 // CircleColorView is an allocation view that can be constructed on top of the target allocator

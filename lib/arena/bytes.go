@@ -46,6 +46,27 @@ func (b Bytes) Cap() int {
 	return int(b.cap)
 }
 
+// SubSlice is an analog to []byte[low:high]
+// Returns sub-slice of the arena.Bytes and panics in case of bounds out of range.
+func (b Bytes) SubSlice(low int, high int) Bytes {
+	inBounds := low >= 0 && low <= high && high <= int(b.len)
+	if !inBounds {
+		panic(fmt.Errorf(
+			"runtime error: slice bounds out of range [%d:%d] with length %d",
+			low, high, b.len,
+		))
+	}
+	return Bytes{
+		data: Ptr{
+			offset:    b.data.offset + uint32(low),
+			bucketIdx: b.data.bucketIdx,
+			arenaMask: b.data.arenaMask,
+		},
+		len: uintptr(high - low),
+		cap: b.cap - uintptr(low),
+	}
+}
+
 // BytesView is an allocation view that can be constructed on top of the target allocator
 // and then used to allocate byte slices and strings inside this allocator.
 //
