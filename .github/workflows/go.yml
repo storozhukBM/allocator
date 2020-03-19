@@ -15,6 +15,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Prepare
-        run: go build -v -o make ./cmd/internal
-      - name: Verify
-        run: ./make -v verify
+        run: go run ./cmd/internal -v verify
