@@ -66,7 +66,7 @@ func (s *arenaDynamicGrowthStand) allocateDifferentObjects(t *testing.T, target 
 	}
 	allocations := make([]allocatedPerson, 0, 100)
 	scaleFactor := rand.Intn(9) + 1
-	for i := 0; i < 1000*scaleFactor; i++ {
+	for i := 0; i < scaleFactor*scaleFactor*scaleFactor; i++ {
 		_, allocErr := target.Alloc(genRandomSize(), genRandomAlignment())
 		failOnError(t, allocErr)
 		if rand.Float32() < 0.01 {
