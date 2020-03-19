@@ -14,7 +14,5 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build make
-        run: go build -v -o make ./cmd/internal
       - name: Verify
-        run: ./make.exe -v verify
+        run: go build -v -o make ./cmd/internal && ./make -v verify
