@@ -17,4 +17,4 @@ jobs:
       - name: Build make
         run: go build -v -o make ./cmd/internal
       - name: Verify
-        run: ./make -v verify
+        run: ./make.exe -v verify
