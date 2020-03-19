@@ -5,7 +5,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.14.x]
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Install Go
@@ -14,5 +14,9 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Verify
+      - name: Verify Unix
+        if: platform == 'ubuntu-latest'
         run: go build -v -o make ./cmd/internal && ./make -v verify
+      - name: Verify Win
+        if: platform == 'windows-latest'
+        run: go build -v -o make ./cmd/internal && ./make.exe -v verify
