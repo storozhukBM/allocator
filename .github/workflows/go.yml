@@ -14,9 +14,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Verify Unix
-        if: platform == 'ubuntu-latest'
-        run: go build -v -o make ./cmd/internal && ./make -v verify
-      - name: Verify Win
-        if: platform == 'windows-latest'
-        run: go build -v -o make ./cmd/internal && ./make.exe -v verify
+      - name: Build make
+        run: go build -v -o make ./cmd/internal
+      - name: Verify
+        run: ./make -v verify
