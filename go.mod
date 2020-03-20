@@ -12,7 +12,7 @@ require (
 	github.com/mholt/archiver/v3 v3.3.0 // for build
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
-	github.com/storozhukBM/build v0.6.0 // for build
+	github.com/storozhukBM/build v0.7.0 // for build
 	github.com/ulikunitz/xz v0.5.7 // indirect
 	golang.org/x/sys v0.0.0-20200320181252-af34d8274f85 // indirect; for build indirect
 )
