@@ -5,7 +5,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.14.x]
-        platform: [windows-latest]
+        platform: [windows-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Install Go
@@ -14,9 +14,9 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Prepare
+      - name: Verify
         run: |
-          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ] || [ "${{ matrix.platform }}" = "macos-latest" ]; then
               go run ./cmd/internal -v verify
           fi
           if [ "${{ matrix.platform }}" = "windows-latest" ]; then
