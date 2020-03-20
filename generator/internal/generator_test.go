@@ -78,7 +78,10 @@ func compareOutputFiles(t *testing.T, targetType string) {
 		t.Errorf("can't read actual file: %s", err.Error())
 	}
 	if !bytes.Equal(actual, expected) {
-		t.Errorf("actual `%s` and expected `%s` files are different", actualOutputFile, expectedOutputFile)
+		t.Errorf("actual `%s` and expected `%s` files are different. \n"+
+			"exp: `%s`\nact: `%s`\n",
+			actualOutputFile, expectedOutputFile, string(expected), string(actual),
+		)
 	}
 }
 
