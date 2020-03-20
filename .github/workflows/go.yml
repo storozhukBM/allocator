@@ -16,10 +16,10 @@ jobs:
         uses: actions/checkout@v2
       - name: Prepare
         run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
               go run ./cmd/internal -v verify
           fi
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
             go run ./cmd/internal -v test
           fi
         shell: bash
