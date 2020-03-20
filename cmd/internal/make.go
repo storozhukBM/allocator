@@ -59,9 +59,7 @@ var commands = []Command{
 
 func generateTestAllocator() {
 	defer b.AddTarget("generate test allocator")()
-	b.Run(Go, `build`, `-o`, codeGenerationToolName, `./generator/main.go`)
-	b.Run(
-		`./`+codeGenerationToolName,
+	b.Run(Go, `run`, `./generator/main.go`,
 		`-type`, `StablePointsVector`,
 		`-dir`, `./generator/internal/testdata/etalon/`,
 	)
