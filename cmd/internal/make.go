@@ -103,7 +103,7 @@ func forceClean() {
 	b.Run(`rm`, `-f`, codeGenerationToolName)
 	b.Run(`rm`, `-f`, `./example/main`)
 	// sh run used to expand wildcard
-	b.ForceRun(`sh`, `-c`, `rm -f ./generator/internal/testdata/etalon/*.alloc.go`)
+	b.ForceShRun(`rm`, `-f`, `./generator/internal/testdata/etalon/*.alloc.go`)
 }
 
 func cleanExecutables() {
