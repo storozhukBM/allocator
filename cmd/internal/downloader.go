@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/mholt/archiver/v3"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mholt/archiver/v3"
 )
 
 type DownloadExecutableOptions struct {
@@ -91,7 +92,11 @@ func DownloadExecutable(opts DownloadExecutableOptions) (string, error) {
 }
 
 func downloadWithOpts(opts DownloadExecutableOptions) (string, error) {
-	destination := filepath.Join(opts.DestinationDirectory, opts.ExecutableName+osExecutableType())
+	currentPath, currentPathErr := os.Getwd()
+	if currentPathErr != nil {
+		return "", fmt.Errorf("can't determine current work dir path: %v", currentPathErr)
+	}
+	destination := filepath.Join(currentPath, opts.DestinationDirectory, opts.ExecutableName+osExecutableType())
 	if !opts.SkipCache {
 		if _, err := os.Stat(destination); err == nil {
 			opts.InfoPrinter("skip download. Use file from cache")
