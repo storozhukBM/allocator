@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"runtime/debug"
@@ -77,10 +76,12 @@ func compareOutputFiles(t *testing.T, targetType string) {
 	if err != nil {
 		t.Errorf("can't read actual file: %s", err.Error())
 	}
-	if !bytes.Equal(actual, expected) {
+	actualString := string(actual)
+	expectedString := string(expected)
+	if actualString != expectedString {
 		t.Errorf("actual `%s` and expected `%s` files are different. \n"+
 			"exp: `%s`\nact: `%s`\n",
-			actualOutputFile, expectedOutputFile, string(expected), string(actual),
+			actualOutputFile, expectedOutputFile, expectedString, actualString,
 		)
 	}
 }
