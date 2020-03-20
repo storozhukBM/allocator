@@ -36,7 +36,6 @@
       "gocyclo",
       "godox",
       "gofmt",
-      "goimports",
       "golint",
       "goprintffuncname",
       "interfacer",
