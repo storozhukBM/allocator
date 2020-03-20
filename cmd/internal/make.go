@@ -120,7 +120,7 @@ func runLinters() {
 		return
 	}
 	if runtime.GOOS == "windows" {
-		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`)
+		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`, `--skip-dirs=cmd`)
 		return
 	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)
