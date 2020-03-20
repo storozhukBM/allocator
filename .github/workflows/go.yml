@@ -15,11 +15,5 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Verify
-        run: |
-          if [ "${{ matrix.platform }}" = "ubuntu-latest" ] || [ "${{ matrix.platform }}" = "macos-latest" ]; then
-              go run ./cmd/internal -v verify
-          fi
-          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-            go run ./cmd/internal -v test
-          fi
+        run: go run ./cmd/internal -v verify
         shell: bash
