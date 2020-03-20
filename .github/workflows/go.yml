@@ -15,4 +15,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Prepare
-        run: go run ./cmd/internal -v verify
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+              go run ./cmd/internal -v verify
+          fi
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            go run ./cmd/internal -v test
+          fi
+        shell: bash
