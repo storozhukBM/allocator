@@ -76,12 +76,15 @@ func compareOutputFiles(t *testing.T, targetType string) {
 	if err != nil {
 		t.Errorf("can't read actual file: %s", err.Error())
 	}
-	actualStr := string(actual)
-	expectedStr := string(expected)
+	actualStr := strings.ReplaceAll(string(actual), "\r\n", "\n")
+	expectedStr := strings.ReplaceAll(string(expected), "\r\n", "\n")
 	if actualStr != expectedStr {
 		for i := 0; i < len(actualStr); i++ {
 			if actualStr[i] != expectedStr[i] {
-				t.Errorf("i: %d; exp char: %s; act char %v", i, string(actualStr[i]), string(expectedStr[i]))
+				t.Errorf(
+					"i: %d; exp ch: `%s`; act ch `%s`; expc: %d; actc: %d",
+					i, string(actualStr[i]), string(expectedStr[i]), actualStr[i], expectedStr[i],
+				)
 			}
 		}
 
