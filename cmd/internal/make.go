@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/gen2brain/beeep"
-	. "github.com/storozhukBM/build"
 	"os"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/gen2brain/beeep"
+	. "github.com/storozhukBM/build"
 )
 
 const coverageName = `coverage.out`
@@ -119,7 +120,7 @@ func runLinters() {
 		return
 	}
 	if runtime.GOOS == "windows" {
-		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--disable=gofmt`, `--disable=goimports`)
+		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`)
 		return
 	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)
