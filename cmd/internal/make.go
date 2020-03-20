@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/gen2brain/beeep"
-	. "github.com/storozhukBM/build"
 	"os"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/gen2brain/beeep"
+	. "github.com/storozhukBM/build"
 )
 
 const coverageName = `coverage.out`
@@ -59,9 +60,7 @@ var commands = []Command{
 
 func generateTestAllocator() {
 	defer b.AddTarget("generate test allocator")()
-	b.Run(Go, `build`, `-o`, codeGenerationToolName, `./generator/main.go`)
-	b.Run(
-		`./`+codeGenerationToolName,
+	b.Run(Go, `run`, `./generator/main.go`,
 		`-type`, `StablePointsVector`,
 		`-dir`, `./generator/internal/testdata/etalon/`,
 	)
@@ -118,6 +117,11 @@ func runLinters() {
 	ciLinterExec, downloadErr := downloadCILinter()
 	if downloadErr != nil {
 		b.AddError(downloadErr)
+		return
+	}
+	if runtime.GOOS == "windows" {
+		// some linters do not support windows, so we use only default set
+		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`, `--skip-dirs=cmd`)
 		return
 	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)

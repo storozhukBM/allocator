@@ -3,13 +3,16 @@ module github.com/storozhukBM/allocator
 go 1.14
 
 require (
-	github.com/gen2brain/beeep v0.0.0-20200131162055-1f001e98c9e1 // for build
-	github.com/godbus/dbus v4.1.0+incompatible // indirect; for build indirect
-	github.com/gopherjs/gopherwasm v1.1.0 // indirect; for build indirect
+	github.com/andybalholm/brotli v1.0.0 // indirect
+	github.com/frankban/quicktest v1.8.1 // indirect
+	github.com/gen2brain/beeep v0.0.0-20200305193625-ff0f4a39397e // for build
+	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
+	github.com/klauspost/compress v1.10.3 // indirect
+	github.com/klauspost/pgzip v1.2.3 // indirect
 	github.com/mholt/archiver/v3 v3.3.0 // for build
-	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect; for build indirect
-	github.com/storozhukBM/build v0.6.0 // for build
-	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect; for build indirect
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect; for build indirect
-	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2 // indirect; for build indirect
+	github.com/nwaples/rardecode v1.1.0 // indirect
+	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
+	github.com/storozhukBM/build v0.7.0 // for build
+	github.com/ulikunitz/xz v0.5.7 // indirect
+	golang.org/x/sys v0.0.0-20200320181252-af34d8274f85 // indirect; for build indirect
 )

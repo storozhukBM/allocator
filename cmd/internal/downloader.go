@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/mholt/archiver/v3"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mholt/archiver/v3"
 )
 
 type DownloadExecutableOptions struct {
@@ -91,7 +92,11 @@ func DownloadExecutable(opts DownloadExecutableOptions) (string, error) {
 }
 
 func downloadWithOpts(opts DownloadExecutableOptions) (string, error) {
-	destination := filepath.Join(opts.DestinationDirectory, opts.ExecutableName+osExecutableType())
+	currentPath, currentPathErr := os.Getwd()
+	if currentPathErr != nil {
+		return "", fmt.Errorf("can't determine current work dir path: %v", currentPathErr)
+	}
+	destination := filepath.Join(currentPath, opts.DestinationDirectory, opts.ExecutableName+osExecutableType())
 	if !opts.SkipCache {
 		if _, err := os.Stat(destination); err == nil {
 			opts.InfoPrinter("skip download. Use file from cache")
@@ -108,17 +113,31 @@ func downloadWithOpts(opts DownloadExecutableOptions) (string, error) {
 		return "", fmt.Errorf("can't decompres. file: %v; error: %v", downloadedFilePath, decompressErr)
 	}
 
+	// We could use os.Rename, but if you move files on Windows from one disk to another, like from C: to D: this
+	// thing will not work. So we are forced to copy file by hand.
+	sourceFile, sourceErr := os.Open(filePath)
+	if sourceErr != nil {
+		return "", fmt.Errorf("can't open source file %v: %v", filePath, sourceErr)
+	}
+	defer func() {
+		_ = sourceFile.Close()
+	}()
+
 	mkdirErr := os.MkdirAll(opts.DestinationDirectory, os.ModePerm)
 	if mkdirErr != nil {
 		return "", fmt.Errorf("can't create dir: %v", mkdirErr)
 	}
+	destinationFile, destinationErr := os.OpenFile(destination, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	if destinationErr != nil {
+		return "", fmt.Errorf("can't create destination file %v: %v", destination, destinationErr)
+	}
+	defer func() {
+		_ = destinationFile.Close()
+	}()
 
-	moveErr := os.Rename(filePath, destination)
-	if moveErr != nil {
-		return "", fmt.Errorf(
-			"can't move file to final destination. downloaded: %v; destination: %v; error: %v",
-			filePath, destination, moveErr,
-		)
+	_, copyErr := io.Copy(destinationFile, sourceFile)
+	if copyErr != nil {
+		return "", fmt.Errorf("can't copy file from %v to %v: %v", filePath, destination, copyErr)
 	}
 	return destination, nil
 }
@@ -280,7 +299,7 @@ func resolveFileName(opts DownloadExecutableOptions) (string, error) {
 func osArchiveType() string {
 	osArchiveType := "tar.gz"
 	if runtime.GOOS == "windows" {
-		osArchiveType = ".zip"
+		osArchiveType = "zip"
 	}
 	return osArchiveType
 }
