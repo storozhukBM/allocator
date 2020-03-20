@@ -280,7 +280,7 @@ func resolveFileName(opts DownloadExecutableOptions) (string, error) {
 func osArchiveType() string {
 	osArchiveType := "tar.gz"
 	if runtime.GOOS == "windows" {
-		osArchiveType = ".zip"
+		osArchiveType = "zip"
 	}
 	return osArchiveType
 }

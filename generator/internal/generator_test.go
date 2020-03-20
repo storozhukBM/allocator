@@ -87,7 +87,6 @@ func compareOutputFiles(t *testing.T, targetType string) {
 				)
 			}
 		}
-
 		t.Errorf(
 			"actual `%s` and expected `%s` files are different. exp len: %v; act len: %v\nexp: `%s`\nact: `%s`\n",
 			actualOutputFile, expectedOutputFile, len(expectedStr), len(actualStr), expectedStr, actualStr,
