@@ -112,7 +112,7 @@ func (a *DynamicAllocator) CurrentOffset() Offset {
 	a.init()
 	offset := a.currentArena.CurrentOffset()
 	offset.p.bucketIdx = uint8(a.currentArenaIdx)
-	offset.p.arenaMask = a.arenaMask
+	offset.p.arenaMask = a.arenaMask + 1
 	return offset
 }
 
