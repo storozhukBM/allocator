@@ -118,6 +118,10 @@ func runLinters() {
 		b.AddError(downloadErr)
 		return
 	}
+	if runtime.GOARCH == "windows" {
+		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--disable=gofmt`, `--disable=goimports`)
+		return
+	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)
 }
 
