@@ -37,6 +37,11 @@ var commands = []Command{
 	{`test`, func() { testLib(); testCodeGen() }},
 	{`verify`, func() { testLib(); testCodeGen(); runLinters() }},
 
+	{`benchAlloc`, b.RunCmd(
+		Go, `test`, `-bench=.`, `-benchtime=5s`, `-count=5`,
+		`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
+	)},
+
 	{`generateTestAllocator`, generateTestAllocator},
 
 	{`coverage`, func() {
