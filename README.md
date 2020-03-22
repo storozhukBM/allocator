@@ -20,6 +20,7 @@ go run ./cmd/internal itself
 
 TODO:
 First Release scope
+1. Add maxUInt32 size limit to raw allocator 
 1. whole documentation with notion of unsafe semantics
 1. mention thread safety in documentation, and share of arena allocated resources between goroutines
 1. crate comprehensive set of benchmarks, profile everything and fix obvious bottlenecks

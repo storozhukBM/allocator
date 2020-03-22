@@ -74,9 +74,13 @@ func (p Metrics) String() string {
 	)
 }
 
-func calculateRequiredPadding(o Offset, targetAlignment int) int {
-	// go compiler should optimise it and use mask operations
-	return (targetAlignment - (int(o.p.offset) % targetAlignment)) % targetAlignment
+func isPowerOfTwo(x uint32) bool {
+	return x != 0 && (x&(x-1)) == 0
+}
+
+func calculatePadding(offset uint32, targetAlignment uint32) uint32 {
+	mask := targetAlignment - 1
+	return (targetAlignment - (offset & mask)) & mask
 }
 
 func clearBytes(buf []byte) {

@@ -58,7 +58,7 @@ type genericArenaAlloc struct {
 	bytesView *arena.BytesView
 }
 
-func newArenaBasedAlloc(allocProvider func() allocator) benchAlloc {
+func newManagedArenaAlloc(allocProvider func() allocator) benchAlloc {
 	pool := &sync.Pool{New: func() interface{} {
 		return allocProvider()
 	}}
@@ -102,7 +102,53 @@ func (i *internalAlloc) allocateBytes(size int) ([]byte, error) {
 func (i *internalAlloc) clear() {
 }
 
-const liveSet = 64 * MB
+const liveSet = 32 * MB
+
+func BenchmarkInternalAllocator(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	a := &internalAlloc{}
+	runBenchmark(b, a, liveSet-64*KB)
+}
+
+func BenchmarkManagedRawAllocator(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	a := newManagedArenaAlloc(func() allocator {
+		return arena.NewRawAllocator(liveSet)
+	})
+	runBenchmark(b, a, liveSet-64*KB)
+}
+
+func BenchmarkManagedDynamicAllocator(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	a := newManagedArenaAlloc(func() allocator {
+		return arena.NewDynamicAllocator()
+	})
+	runBenchmark(b, a, liveSet-64*KB)
+}
+
+func BenchmarkManagedDynamicAllocatorWithPreAlloc(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	a := newManagedArenaAlloc(func() allocator {
+		return arena.NewDynamicAllocatorWithInitialCapacity(liveSet)
+	})
+	runBenchmark(b, a, liveSet-64*KB)
+}
+
+func BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	a := newManagedArenaAlloc(func() allocator {
+		return arena.NewGenericAllocator(arena.Options{
+			InitialCapacity:                    liveSet,
+			DelegateClearToUnderlyingAllocator: true,
+		})
+	})
+	runBenchmark(b, a, liveSet-64*KB)
+}
 
 func BenchmarkRawAllocator(b *testing.B) {
 	b.ReportAllocs()
@@ -110,13 +156,6 @@ func BenchmarkRawAllocator(b *testing.B) {
 	a := newDirectArenaAlloc(func() allocator {
 		return arena.NewRawAllocator(liveSet)
 	})
-	runBenchmark(b, a, liveSet-64*KB)
-}
-
-func BenchmarkInternalAllocator(b *testing.B) {
-	b.ReportAllocs()
-	b.StopTimer()
-	a := &internalAlloc{}
 	runBenchmark(b, a, liveSet-64*KB)
 }
 
@@ -184,16 +223,24 @@ func BenchmarkDynamicAllocator(b *testing.B) {
 }
 
 func runBenchmark(b *testing.B, a benchAlloc, liveSetSize uint) {
-	sizesMask := 64 - 1
-	sizesSlice := make([]uint16, 64)
-	readIdx := make([]uint16, 64)
-	writeIdx := make([]uint16, 64)
+	sameSizeAllocationProfile(b, a, liveSetSize)
+}
+
+var sizesMask = 64 - 1
+var sizesSlice = make([]uint16, 64)
+var readIdx = make([]uint16, 64)
+var writeIdx = make([]uint16, 64)
+
+func init() {
 	for i := 0; i < 64; i++ {
-		sizesSlice[i] = 1 << rand.Intn(16)
+		sizesSlice[i] = uint16((1 << (3 + rand.Intn(12))) * (1 + rand.Intn(3)))
 		readIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
 		writeIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
 	}
+	fmt.Printf("\nsizes: %v\n", sizesSlice)
+}
 
+func differentSizeAllocationProfile(b *testing.B, a benchAlloc, liveSetSize uint) {
 	benchState := 0
 	currentSize := 0
 	b.StartTimer()
@@ -214,6 +261,37 @@ func runBenchmark(b *testing.B, a benchAlloc, liveSetSize uint) {
 		}
 		bytes[writeIdx[idx]] = 234
 		benchState += int(bytes[readIdx[idx]])
+	}
+	b.StopTimer()
+	if rand.Float64() < 0.00001 {
+		fmt.Printf("N: %d; %d\n", b.N, benchState)
+	}
+}
+
+func sameSizeAllocationProfile(b *testing.B, a benchAlloc, liveSetSize uint) {
+	differentSizeAllocationProfile(b, a, liveSetSize)
+}
+
+func runBenchmarkForSpecificSize(b *testing.B, a benchAlloc, liveSetSize uint, sizeClass int) {
+	rIdx := rand.Intn(sizeClass)
+	wIdx := rand.Intn(sizeClass)
+
+	benchState := 0
+	currentSize := 0
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		currentSize += sizeClass
+		if currentSize >= int(liveSetSize) {
+			a.clear()
+			currentSize = 0
+		}
+		bytes, allocErr := a.allocateBytes(sizeClass)
+		if allocErr != nil {
+			b.Error(allocErr)
+			b.FailNow()
+		}
+		bytes[wIdx] = 234
+		benchState += int(bytes[rIdx])
 	}
 	b.StopTimer()
 	if rand.Float64() < 0.0001 {

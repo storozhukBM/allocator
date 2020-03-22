@@ -68,7 +68,7 @@ type Options struct {
 func NewGenericAllocator(opts Options) *GenericAllocator {
 	result := &GenericAllocator{delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.InitialCapacity > 0 {
-		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
+		result.target = NewDynamicAllocatorWithInitialCapacity(opts.InitialCapacity)
 		result.allocatedBytes += result.target.Metrics().AllocatedBytes
 	}
 	if opts.AllocationLimitInBytes > 0 {
@@ -102,6 +102,9 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 // It returns arena.Ptr value, which is basically
 // an offset and index of the target arena used for this allocation.
 //
+// alignment - should be a power of 2 number and can't be 0
+// In case of any violations, panic will be thrown.
+//
 // arena.GenericAllocator has "limits" functionality, so it checks
 // if a future allocation can violate specified allocationLimitInBytes
 // and returns arena.AllocationLimitError, if so.
@@ -115,11 +118,15 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 // and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
-	targetAlignment := max(int(alignment), 1)
 	targetSize := int(size)
-	targetPadding := calculateRequiredPadding(a.target.CurrentOffset(), targetAlignment)
+	targetAlignment := uint32(alignment)
 
-	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding > a.allocationLimitInBytes {
+	if !isPowerOfTwo(targetAlignment) {
+		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
+	}
+	targetPadding := calculatePadding(a.target.CurrentOffset().p.offset, targetAlignment)
+
+	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+int(targetPadding) > a.allocationLimitInBytes {
 		return Ptr{}, AllocationLimitError
 	}
 

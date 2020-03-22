@@ -1,4 +1,4 @@
-package arena
+package alignment_bench_test
 
 import (
 	"fmt"
@@ -29,58 +29,41 @@ func calculateRequiredPaddingMaskUnsafe(o uint32, targetAlignment uint32) uint32
 	return (targetAlignment - (o & mask)) & mask
 }
 
-func BenchmarkAlign(b *testing.B) {
+func benchmarkAlignment(b *testing.B, alignmentFunc func(o, align uint32) uint32) {
 	b.StopTimer()
-	os := make([]uint32, b.N)
-	aligns := make([]uint32, b.N)
-	for i := 0; i < b.N; i++ {
+
+	tableSize := 64
+	idxMask := tableSize - 1
+	os := make([]uint32, tableSize)
+	aligns := make([]uint32, tableSize)
+	for i := 0; i < tableSize; i++ {
 		os[i] = uint32(rand.Intn(480000000000))
 		aligns[i] = uint32(1 << uint32(rand.Intn(32)))
 	}
+
 	b.StartTimer()
 	count := uint32(0)
 	for i := 0; i < b.N; i++ {
-		result := calculateRequiredPadding(os[i], aligns[i])
+		idx := i & idxMask
+		result := alignmentFunc(os[idx], aligns[idx])
 		count += result
 	}
 	b.StopTimer()
-	fmt.Printf("%d\n", count)
+	if rand.Float64() < 0.00001 {
+		fmt.Printf("%d\n", count)
+	}
+}
+
+func BenchmarkAlign(b *testing.B) {
+	benchmarkAlignment(b, calculateRequiredPadding)
 }
 
 func BenchmarkAlignMaskUnsafe(b *testing.B) {
-	b.StopTimer()
-	os := make([]uint32, b.N)
-	aligns := make([]uint32, b.N)
-	for i := 0; i < b.N; i++ {
-		os[i] = uint32(rand.Intn(480000000000))
-		aligns[i] = uint32(1 << uint32(rand.Intn(32)))
-	}
-	b.StartTimer()
-	count := uint32(0)
-	for i := 0; i < b.N; i++ {
-		result := calculateRequiredPaddingMaskUnsafe(os[i], aligns[i])
-		count += result
-	}
-	b.StopTimer()
-	fmt.Printf("%d\n", count)
+	benchmarkAlignment(b, calculateRequiredPaddingMaskUnsafe)
 }
 
 func BenchmarkAlignMask(b *testing.B) {
-	b.StopTimer()
-	os := make([]uint32, b.N)
-	aligns := make([]uint32, b.N)
-	for i := 0; i < b.N; i++ {
-		os[i] = uint32(rand.Intn(480000000000))
-		aligns[i] = uint32(1 << uint32(rand.Intn(32)))
-	}
-	b.StartTimer()
-	count := uint32(0)
-	for i := 0; i < b.N; i++ {
-		result := calculateRequiredPaddingMask(os[i], aligns[i])
-		count += result
-	}
-	b.StopTimer()
-	fmt.Printf("%d\n", count)
+	benchmarkAlignment(b, calculateRequiredPaddingMask)
 }
 
 func TestAlternatives(t *testing.T) {

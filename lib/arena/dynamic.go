@@ -43,7 +43,7 @@ func NewDynamicAllocator() *DynamicAllocator {
 	return &DynamicAllocator{}
 }
 
-func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
+func NewDynamicAllocatorWithInitialCapacity(size uint) *DynamicAllocator {
 	result := &DynamicAllocator{}
 	result.grow(int(size))
 	return result
@@ -53,6 +53,9 @@ func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
 //
 // It returns arena.Ptr value, which is basically
 // an offset and index of arena used for this allocation.
+//
+// alignment - should be a power of 2 number and can't be 0
+// In case of any violations, panic will be thrown.
 //
 // arena.DynamicAllocator can grow dynamically if required but has to limits functionality,
 // so for such features, please refer to arena.GenericAllocator.
@@ -66,17 +69,23 @@ func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
 // and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
-	targetSize := int(size)
-	targetAlignment := max(int(alignment), 1)
-	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
-	if targetSize+padding > len(a.currentArena.buffer)-a.currentArena.offset {
-		a.grow(targetSize + padding)
+	targetSize := uint32(size)
+	targetAlignment := uint32(alignment)
+
+	if !isPowerOfTwo(targetAlignment) {
+		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
+	}
+
+	padding := calculatePadding(a.currentArena.offset, targetAlignment)
+	resultSize := targetSize + padding
+	if resultSize > uint32(len(a.currentArena.buffer))-a.currentArena.offset {
+		a.grow(int(resultSize))
 	}
 	result, allocErr := a.currentArena.Alloc(size, uintptr(targetAlignment))
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
-	a.usedBytes += targetSize + padding
+	a.usedBytes += int(resultSize)
 	result.bucketIdx = uint8(a.currentArenaIdx)
 	result.arenaMask = a.arenaMask
 	return result, nil
@@ -206,7 +215,7 @@ func (a *DynamicAllocator) tryToPickClearArenaFromFreeList(size int) (RawAllocat
 	})
 	if candidateIdx < len(a.freeListOfClearArenas) {
 		newArena := a.freeListOfClearArenas[candidateIdx]
-		// clear nonsuitable candidates
+		// clear non-suitable candidates
 		for idx := range a.freeListOfClearArenas {
 			a.freeListOfClearArenas[idx] = RawAllocator{}
 			if idx == candidateIdx {
