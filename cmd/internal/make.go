@@ -149,7 +149,10 @@ func runLinters() {
 	}
 	if runtime.GOOS == "windows" {
 		// some linters do not support windows, so we use only default set
-		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`, `--skip-dirs=cmd`)
+		b.Run(
+			ciLinterExec, `-j`, parallelism, `run`, `--no-config`,
+			`--skip-dirs=cmd`, `--skip-dirs=alignment_bench_test`, `--skip-dirs=allocation_bench_test`,
+		)
 		return
 	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)
