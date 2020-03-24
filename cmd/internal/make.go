@@ -36,13 +36,14 @@ var commands = []Command{
 	{`clean`, clean},
 	{`cleanAll`, func() { clean(); cleanExecutables() }},
 
+	{`pprof`, b.RunCmd(Go, `tool`, `pprof`, profileName)},
 	{`profileRawAlloc`, profileAllocationBenchmark(`BenchmarkRawAllocator`)},
 	{`profileManagedRawAlloc`, profileAllocationBenchmark(`BenchmarkManagedRawAllocator`)},
 	{`profileDynamicAlloc`, profileAllocationBenchmark(`BenchmarkDynamicAllocator`)},
-	{`profileGenericAlloc`, profileAllocationBenchmark(`BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean`)},
+	{`profileGenericAlloc`, profileAllocationBenchmark(`BenchmarkGenericAllocatorWithSubClean`)},
 
 	{`benchAlloc`, b.RunCmd(
-		Go, `test`, `-bench=.`,
+		Go, `test`, `-bench=.`, `-count=5`,
 		`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
 	)},
 	{`benchAlignment`, b.RunCmd(

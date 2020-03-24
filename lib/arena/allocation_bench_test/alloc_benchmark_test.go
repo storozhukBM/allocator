@@ -223,7 +223,8 @@ func BenchmarkDynamicAllocator(b *testing.B) {
 }
 
 func runBenchmark(b *testing.B, a benchAlloc, liveSetSize uint) {
-	sameSizeAllocationProfile(b, a, liveSetSize)
+	differentSizeAllocationProfile(b, a, liveSetSize)
+	//sameSizeAllocationProfile(b, a, liveSet)
 }
 
 var sizesMask = 64 - 1
@@ -237,7 +238,6 @@ func init() {
 		readIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
 		writeIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
 	}
-	fmt.Printf("\nsizes: %v\n", sizesSlice)
 }
 
 func differentSizeAllocationProfile(b *testing.B, a benchAlloc, liveSetSize uint) {
@@ -269,7 +269,7 @@ func differentSizeAllocationProfile(b *testing.B, a benchAlloc, liveSetSize uint
 }
 
 func sameSizeAllocationProfile(b *testing.B, a benchAlloc, liveSetSize uint) {
-	differentSizeAllocationProfile(b, a, liveSetSize)
+	runBenchmarkForSpecificSize(b, a, liveSetSize, 64)
 }
 
 func runBenchmarkForSpecificSize(b *testing.B, a benchAlloc, liveSetSize uint, sizeClass int) {

@@ -5,6 +5,8 @@ import (
 	"unsafe"
 )
 
+const minInternalBufferSize uint32 = 64 * 1024
+
 // RawAllocator is the simplest bump pointer allocator
 // that can operate on top of once allocated byte slice.
 //
@@ -24,10 +26,20 @@ type RawAllocator struct {
 
 // NewRawAllocator creates an instance of arena.RawAllocator
 // and allocates the whole it's underlying buffer from the heap in advance.
-func NewRawAllocator(size uint) *RawAllocator {
+func NewRawAllocator(size uint32) *RawAllocator {
 	return &RawAllocator{
 		buffer: make([]byte, int(size)),
 	}
+}
+
+// NewRawAllocatorWithOptimalSize creates an instance of arena.RawAllocator
+// and allocates the whole it's underlying buffer from the heap in advance.
+// This method will figure-out size that will be >= size and will enable certain
+// underlying optimizations like vectorized Clear operation.
+func NewRawAllocatorWithOptimalSize(size uint32) *RawAllocator {
+	targetSize := uint32(max(int(size), int(minInternalBufferSize)))
+	additionalPadding := calculatePadding(targetSize, minInternalBufferSize)
+	return NewRawAllocator(targetSize + additionalPadding)
 }
 
 // Alloc performs allocation within an underlying buffer.
@@ -94,7 +106,13 @@ func (a *RawAllocator) CurrentOffset() Offset {
 // To avoid such situation please refer to other allocator implementations from this library
 // that provide additional safety checks.
 func (a *RawAllocator) Clear() {
-	clearBytes(a.buffer)
+	bytesToClear := a.buffer
+	if len(bytesToClear) > 0 {
+		padding := calculatePadding(a.offset, minInternalBufferSize)
+		idx := min(int(a.offset+padding), len(bytesToClear))
+		bytesToClear = bytesToClear[:idx]
+	}
+	clearBytes(bytesToClear)
 	a.offset = 0
 }
 

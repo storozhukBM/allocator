@@ -8,8 +8,6 @@ import (
 	"unsafe"
 )
 
-const defaultFirstBucketSize int = 16 * 1024
-
 // DynamicAllocator is the dynamically growable bump pointer allocator.
 //
 // It can grow it's capacity if needed and can prevent some types of unsafe behaviour by throwing panics.
@@ -29,9 +27,10 @@ type DynamicAllocator struct {
 	currentArena    RawAllocator
 	currentArenaIdx int
 
-	allocatedBytes    int
 	usedBytes         int
+	allocatedBytes    int
 	onHeapAllocations int
+	maxCapacity       int
 
 	arenaMask uint16
 
@@ -160,12 +159,12 @@ func (a *DynamicAllocator) Clear() {
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *DynamicAllocator) Metrics() Metrics {
-	currentArenaMetrics := a.currentArena.Metrics()
 	return Metrics{
-		UsedBytes:                a.usedBytes,
-		AvailableBytes:           currentArenaMetrics.AvailableBytes,
+		UsedBytes: a.usedBytes,
+		// we inline AvailableBytes calculation by hand to avoid full call to a.currentArena.Metrics
+		AvailableBytes:           len(a.currentArena.buffer) - int(a.currentArena.offset),
 		AllocatedBytes:           a.allocatedBytes,
-		MaxCapacity:              a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32,
+		MaxCapacity:              a.maxCapacity,
 		CountOfOnHeapAllocations: a.onHeapAllocations,
 	}
 }
@@ -177,8 +176,7 @@ func (a *DynamicAllocator) String() string {
 }
 
 func (a *DynamicAllocator) grow(requiredAvailableSize int) {
-	minSizeOfNewArena := max(defaultFirstBucketSize, requiredAvailableSize*2)
-	newSize := max(len(a.currentArena.buffer)*2, minSizeOfNewArena)
+	newSize := max(len(a.currentArena.buffer)*2, requiredAvailableSize*2)
 	newArena := a.getNewArena(newSize)
 	if a.currentArena.buffer != nil {
 		a.arenas = append(a.arenas, a.currentArena)
@@ -189,9 +187,8 @@ func (a *DynamicAllocator) grow(requiredAvailableSize int) {
 
 func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	if a.freeListOfClearArenas == nil {
-		newRawArena := NewRawAllocator(uint(size))
-		a.allocatedBytes += size
-		a.onHeapAllocations++
+		newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
+		a.updateAllocationMetrics(len(newRawArena.buffer))
 		return *newRawArena
 	}
 
@@ -203,10 +200,15 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	// there will be nothing suitable in free list in future
 	// because next sizes will always be bigger than current
 	a.freeListOfClearArenas = nil
-	newRawArena := NewRawAllocator(uint(size))
-	a.allocatedBytes += size
-	a.onHeapAllocations++
+	newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
+	a.updateAllocationMetrics(len(newRawArena.buffer))
 	return *newRawArena
+}
+
+func (a *DynamicAllocator) updateAllocationMetrics(allocatedBytes int) {
+	a.allocatedBytes += allocatedBytes
+	a.onHeapAllocations++
+	a.maxCapacity = a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32
 }
 
 func (a *DynamicAllocator) tryToPickClearArenaFromFreeList(size int) (RawAllocator, bool) {

@@ -1,0 +1,65 @@
+goos: darwin
+goarch: amd64
+pkg: github.com/storozhukBM/allocator/lib/arena/allocation_bench_test
+BenchmarkInternalAllocator-4                                 	  786108	      1467 ns/op	    7554 B/op	       1 allocs/op
+BenchmarkInternalAllocator-4                                 	  829165	      1453 ns/op	    7554 B/op	       1 allocs/op
+BenchmarkInternalAllocator-4                                 	  816854	      1482 ns/op	    7554 B/op	       1 allocs/op
+BenchmarkInternalAllocator-4                                 	  815132	      1505 ns/op	    7554 B/op	       1 allocs/op
+BenchmarkInternalAllocator-4                                 	  668967	      1534 ns/op	    7554 B/op	       1 allocs/op
+BenchmarkManagedRawAllocator-4                               	 3396112	       360 ns/op	     187 B/op	       0 allocs/op
+BenchmarkManagedRawAllocator-4                               	 3195812	       339 ns/op	     167 B/op	       0 allocs/op
+BenchmarkManagedRawAllocator-4                               	 3335443	       336 ns/op	     130 B/op	       0 allocs/op
+BenchmarkManagedRawAllocator-4                               	 3257677	       335 ns/op	     133 B/op	       0 allocs/op
+BenchmarkManagedRawAllocator-4                               	 3425137	       338 ns/op	     137 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocator-4                           	  881366	      1267 ns/op	    1729 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocator-4                           	  915261	      1257 ns/op	    1537 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocator-4                           	  899774	      1250 ns/op	    1787 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocator-4                           	  844965	      1253 ns/op	    1646 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocator-4                           	  874388	      1323 ns/op	    1551 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocatorWithPreAlloc-4               	 1575909	       772 ns/op	    1064 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocatorWithPreAlloc-4               	 1459759	       688 ns/op	    1195 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocatorWithPreAlloc-4               	 1638106	       659 ns/op	    1106 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocatorWithPreAlloc-4               	 1774436	       684 ns/op	    1096 B/op	       0 allocs/op
+BenchmarkManagedDynamicAllocatorWithPreAlloc-4               	 1724247	       656 ns/op	    1050 B/op	       0 allocs/op
+BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean-4   	 1767242	       669 ns/op	     835 B/op	       0 allocs/op
+BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean-4   	 1702321	       662 ns/op	     788 B/op	       0 allocs/op
+BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean-4   	 1670770	       667 ns/op	     642 B/op	       0 allocs/op
+BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean-4   	 1692163	       669 ns/op	     832 B/op	       0 allocs/op
+BenchmarkManagedGenericAllocatorWithPreAllocWithSubClean-4   	 1752602	       663 ns/op	     727 B/op	       0 allocs/op
+BenchmarkRawAllocator-4                                      	 2436759	       481 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRawAllocator-4                                      	 2428159	       497 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRawAllocator-4                                      	 2466579	       483 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRawAllocator-4                                      	 2463151	       479 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRawAllocator-4                                      	 2420420	       479 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithSubClean-4                      	  811267	      1430 ns/op	      62 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithSubClean-4                      	  818995	      1588 ns/op	      61 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithSubClean-4                      	  815661	      1435 ns/op	      61 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithSubClean-4                      	  817932	      1429 ns/op	      61 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithSubClean-4                      	  820149	      1419 ns/op	      61 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubClean-4                   	  662078	      1548 ns/op	   12587 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubClean-4                   	  666976	      1549 ns/op	   12601 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubClean-4                   	  669571	      1538 ns/op	   12609 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubClean-4                   	  662990	      1553 ns/op	   12582 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubClean-4                   	  660344	      1540 ns/op	   12607 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubCleanWithLimit-4          	  645423	      1551 ns/op	   12600 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubCleanWithLimit-4          	  689431	      1549 ns/op	   12586 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubCleanWithLimit-4          	  779380	      1520 ns/op	   12584 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubCleanWithLimit-4          	  667486	      1534 ns/op	   12611 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithoutSubCleanWithLimit-4          	  665162	      1552 ns/op	   12566 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithoutSubClean-4       	 1000000	      1522 ns/op	   12542 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithoutSubClean-4       	 1000000	      1526 ns/op	   12542 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithoutSubClean-4       	 1000000	      1569 ns/op	   12542 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithoutSubClean-4       	 1000000	      1528 ns/op	   12542 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithoutSubClean-4       	 1000000	      1529 ns/op	   12542 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithSubClean-4          	 1257249	       952 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithSubClean-4          	 1266858	       951 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithSubClean-4          	 1258136	       948 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithSubClean-4          	 1261569	       947 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericAllocatorWithPreAllocWithSubClean-4          	 1255888	       946 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDynamicAllocator-4                                  	  856150	      1370 ns/op	      58 B/op	       0 allocs/op
+BenchmarkDynamicAllocator-4                                  	  858555	      1367 ns/op	      58 B/op	       0 allocs/op
+BenchmarkDynamicAllocator-4                                  	  858979	      1363 ns/op	      58 B/op	       0 allocs/op
+BenchmarkDynamicAllocator-4                                  	  801116	      1518 ns/op	      62 B/op	       0 allocs/op
+BenchmarkDynamicAllocator-4                                  	  852476	      1429 ns/op	      59 B/op	       0 allocs/op
+PASS
+ok  	github.com/storozhukBM/allocator/lib/arena/allocation_bench_test	103.823s
