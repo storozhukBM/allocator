@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
 	"unsafe"
 )
 
@@ -21,7 +20,7 @@ import (
 // General advice would be to use arena.GenericAllocator, available in this library,
 // and refer to this one only if you really need to.
 type DynamicAllocator struct {
-	freeListOfClearArenas []RawAllocator
+	freeListOfClearArenas minHeapOfClearArenas
 
 	arenas          []RawAllocator
 	currentArena    RawAllocator
@@ -135,21 +134,17 @@ func (a *DynamicAllocator) CurrentOffset() Offset {
 func (a *DynamicAllocator) Clear() {
 	if len(a.currentArena.buffer) > 0 {
 		a.currentArena.Clear()
-		a.freeListOfClearArenas = append(a.freeListOfClearArenas, a.currentArena)
+		a.freeListOfClearArenas.Push(a.currentArena)
 	}
 	a.currentArena = RawAllocator{}
 
 	for _, ar := range a.arenas {
 		if len(ar.buffer) > 0 {
 			ar.Clear()
-			a.freeListOfClearArenas = append(a.freeListOfClearArenas, ar)
+			a.freeListOfClearArenas.Push(ar)
 		}
 	}
 	a.arenas = a.arenas[:0]
-
-	sort.Slice(a.freeListOfClearArenas, func(i, j int) bool {
-		return a.freeListOfClearArenas[i].Metrics().MaxCapacity < a.freeListOfClearArenas[j].Metrics().MaxCapacity
-	})
 
 	a.currentArenaIdx = 0
 	a.usedBytes = 0
@@ -186,7 +181,7 @@ func (a *DynamicAllocator) grow(requiredAvailableSize int) {
 }
 
 func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
-	if a.freeListOfClearArenas == nil {
+	if len(a.freeListOfClearArenas.heap) == 0 {
 		newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
 		a.updateAllocationMetrics(len(newRawArena.buffer))
 		return *newRawArena
@@ -196,10 +191,6 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	if ok {
 		return newArenaFromFreeList
 	}
-
-	// there will be nothing suitable in free list in future
-	// because next sizes will always be bigger than current
-	a.freeListOfClearArenas = nil
 	newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
 	a.updateAllocationMetrics(len(newRawArena.buffer))
 	return *newRawArena
@@ -212,28 +203,65 @@ func (a *DynamicAllocator) updateAllocationMetrics(allocatedBytes int) {
 }
 
 func (a *DynamicAllocator) tryToPickClearArenaFromFreeList(size int) (RawAllocator, bool) {
-	candidateIdx := sort.Search(len(a.freeListOfClearArenas), func(i int) bool {
-		return a.freeListOfClearArenas[i].Metrics().MaxCapacity >= size
-	})
-	if candidateIdx < len(a.freeListOfClearArenas) {
-		newArena := a.freeListOfClearArenas[candidateIdx]
-		// clear non-suitable candidates
-		for idx := range a.freeListOfClearArenas {
-			a.freeListOfClearArenas[idx] = RawAllocator{}
-			if idx == candidateIdx {
-				break
-			}
+	for {
+		candidate, ok := a.freeListOfClearArenas.Pop()
+		if !ok {
+			return RawAllocator{}, false
 		}
-		if candidateIdx+1 != len(a.freeListOfClearArenas) {
-			a.freeListOfClearArenas = a.freeListOfClearArenas[candidateIdx+1:]
+		if len(candidate.buffer) < size {
+			continue
 		}
-		return newArena, true
+		return candidate, true
 	}
-	return RawAllocator{}, false
 }
 
 func (a *DynamicAllocator) init() {
 	if a.arenaMask == 0 {
 		a.arenaMask = uint16(rand.Uint32()) | 1
 	}
+}
+
+type minHeapOfClearArenas struct {
+	heap []RawAllocator
+}
+
+func (h *minHeapOfClearArenas) Push(arena RawAllocator) {
+	h.heap = append(h.heap, arena)
+	currentIdx := len(h.heap) - 1
+	for {
+		parentIdx := (currentIdx - 1) / 2
+		if parentIdx == currentIdx || len(h.heap[currentIdx].buffer) >= len(h.heap[parentIdx].buffer) {
+			break
+		}
+		h.heap[currentIdx], h.heap[parentIdx] = h.heap[parentIdx], h.heap[currentIdx]
+		currentIdx = parentIdx
+	}
+}
+
+func (h *minHeapOfClearArenas) Pop() (RawAllocator, bool) {
+	if len(h.heap) == 0 {
+		return RawAllocator{}, false
+	}
+	result := h.heap[0]
+	h.heap[0] = h.heap[len(h.heap)-1]
+	currentIdx := 0
+
+	for {
+		leftIdx := 2*currentIdx + 1
+		smallestBetweenChildrenIdx := leftIdx
+		if leftIdx >= len(h.heap) || leftIdx < 0 {
+			break
+		}
+		rightIdx := leftIdx + 1
+		if rightIdx < len(h.heap) && rightIdx > 0 && len(h.heap[rightIdx].buffer) < len(h.heap[leftIdx].buffer) {
+			smallestBetweenChildrenIdx = rightIdx
+		}
+		if len(h.heap[smallestBetweenChildrenIdx].buffer) >= len(h.heap[currentIdx].buffer) {
+			break
+		}
+		h.heap[currentIdx], h.heap[smallestBetweenChildrenIdx] = h.heap[smallestBetweenChildrenIdx], h.heap[currentIdx]
+		currentIdx = smallestBetweenChildrenIdx
+	}
+	h.heap = h.heap[0 : len(h.heap)-1]
+	return result, true
 }
