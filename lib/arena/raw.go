@@ -116,15 +116,23 @@ func (a *RawAllocator) Clear() {
 	a.offset = 0
 }
 
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *RawAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                int(a.offset),
+		AllocatedBytes:           len(a.buffer),
+		CountOfOnHeapAllocations: 0,
+	}
+}
+
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *RawAllocator) Metrics() Metrics {
 	return Metrics{
-		UsedBytes:                int(a.offset),
-		AvailableBytes:           len(a.buffer) - int(a.offset),
-		AllocatedBytes:           len(a.buffer),
-		MaxCapacity:              len(a.buffer),
-		CountOfOnHeapAllocations: 0,
+		Stats:          a.Stats(),
+		AvailableBytes: len(a.buffer) - int(a.offset),
+		MaxCapacity:    len(a.buffer),
 	}
 }
 

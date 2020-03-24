@@ -151,16 +151,28 @@ func (a *DynamicAllocator) Clear() {
 	a.arenaMask = (a.arenaMask + 1) | 1
 }
 
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *DynamicAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
+	}
+}
+
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *DynamicAllocator) Metrics() Metrics {
 	return Metrics{
-		UsedBytes: a.usedBytes,
+		Stats: Stats{
+			UsedBytes:                a.usedBytes,
+			AllocatedBytes:           a.allocatedBytes,
+			CountOfOnHeapAllocations: a.onHeapAllocations,
+		},
 		// we inline AvailableBytes calculation by hand to avoid full call to a.currentArena.Metrics
-		AvailableBytes:           len(a.currentArena.buffer) - int(a.currentArena.offset),
-		AllocatedBytes:           a.allocatedBytes,
-		MaxCapacity:              a.maxCapacity,
-		CountOfOnHeapAllocations: a.onHeapAllocations,
+		AvailableBytes: len(a.currentArena.buffer) - int(a.currentArena.offset),
+		MaxCapacity:    a.maxCapacity,
 	}
 }
 

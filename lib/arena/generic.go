@@ -10,6 +10,7 @@ type allocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
 	CurrentOffset() Offset
 	ToRef(p Ptr) unsafe.Pointer
+	Stats() Stats
 	Metrics() Metrics
 	Clear()
 }
@@ -130,19 +131,19 @@ func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 		return Ptr{}, AllocationLimitError
 	}
 
-	beforeCallMetrics := a.target.Metrics()
+	beforeCallStats := a.target.Stats()
 	result, allocErr := a.target.Alloc(size, alignment)
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
-	afterCallMetrics := a.target.Metrics()
+	afterCallStats := a.target.Stats()
 
 	a.countOfAllocations++
-	a.usedBytes += afterCallMetrics.UsedBytes - beforeCallMetrics.UsedBytes
+	a.usedBytes += afterCallStats.UsedBytes - beforeCallStats.UsedBytes
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
-	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
-	a.onHeapAllocations += afterCallMetrics.CountOfOnHeapAllocations - beforeCallMetrics.CountOfOnHeapAllocations
+	a.allocatedBytes += afterCallStats.AllocatedBytes - beforeCallStats.AllocatedBytes
+	a.onHeapAllocations += afterCallStats.CountOfOnHeapAllocations - beforeCallStats.CountOfOnHeapAllocations
 
 	result.arenaMask = a.arenaMask
 	return result, nil
@@ -201,6 +202,16 @@ func (a *GenericAllocator) Clear() {
 	a.usedBytes = 0
 }
 
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *GenericAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
+	}
+}
+
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *GenericAllocator) Metrics() Metrics {
@@ -209,11 +220,13 @@ func (a *GenericAllocator) Metrics() Metrics {
 	}
 	targetArenaMetrics := a.target.Metrics()
 	result := Metrics{
-		UsedBytes:                a.usedBytes,
-		AvailableBytes:           targetArenaMetrics.AvailableBytes,
-		AllocatedBytes:           a.allocatedBytes,
-		MaxCapacity:              targetArenaMetrics.MaxCapacity,
-		CountOfOnHeapAllocations: a.onHeapAllocations,
+		Stats: Stats{
+			UsedBytes:                a.usedBytes,
+			AllocatedBytes:           a.allocatedBytes,
+			CountOfOnHeapAllocations: a.onHeapAllocations,
+		},
+		AvailableBytes: targetArenaMetrics.AvailableBytes,
+		MaxCapacity:    targetArenaMetrics.MaxCapacity,
 	}
 	if a.allocationLimitInBytes > 0 {
 		result.MaxCapacity = a.allocationLimitInBytes

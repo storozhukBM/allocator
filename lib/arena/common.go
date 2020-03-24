@@ -56,14 +56,28 @@ func (o Offset) String() string {
 	return o.p.String()
 }
 
+// Stats is a struct that represents a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+type Stats struct {
+	UsedBytes                int // count of bytes actually allocated and used inside an arena
+	AllocatedBytes           int // count of bytes that are allocated inside the general heap
+	CountOfOnHeapAllocations int // count of allocations performed inside the general heap
+}
+
+// String provides a string snapshot of the Metrics state.
+func (s Stats) String() string {
+	return fmt.Sprintf(
+		"{UsedBytes: %v AllocatedBytes %v CountOfOnHeapAllocations %v}",
+		s.UsedBytes, s.AllocatedBytes, s.CountOfOnHeapAllocations,
+	)
+}
+
 // Metrics is a struct that represents a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 type Metrics struct {
-	UsedBytes                int // count of bytes actually allocated and used inside an arena
-	AvailableBytes           int // count of bytes that are reserved from the general heap, but aren't used
-	AllocatedBytes           int // count of bytes that are allocated inside the general heap
-	MaxCapacity              int // count of bytes that potentially can be allocated using specific arena
-	CountOfOnHeapAllocations int // count of allocations performed inside the general heap
+	Stats
+	AvailableBytes int // count of bytes that are reserved from the general heap, but aren't used
+	MaxCapacity    int // count of bytes that potentially can be allocated using specific arena
 }
 
 // String provides a string snapshot of the Metrics state.
