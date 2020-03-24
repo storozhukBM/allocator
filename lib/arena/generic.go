@@ -31,8 +31,9 @@ type allocator interface {
 // General advice would be to use this GenericAllocator by default,
 // and refer to other implementations only if you really need to.
 type GenericAllocator struct {
-	target    allocator
-	arenaMask uint16
+	target          allocator
+	targetArenaMask uint16
+	thisArenaMask   uint16
 
 	delegateClear          bool
 	allocationLimitInBytes int
@@ -70,6 +71,7 @@ func NewGenericAllocator(opts Options) *GenericAllocator {
 	result := &GenericAllocator{delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.InitialCapacity > 0 {
 		result.target = NewDynamicAllocatorWithInitialCapacity(opts.InitialCapacity)
+		result.targetArenaMask = result.target.CurrentOffset().p.arenaMask
 		result.allocatedBytes += result.target.Metrics().AllocatedBytes
 	}
 	if opts.AllocationLimitInBytes > 0 {
@@ -90,7 +92,11 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 	if target == nil {
 		target = NewGenericAllocator(opts)
 	}
-	result := &GenericAllocator{target: target, delegateClear: opts.DelegateClearToUnderlyingAllocator}
+	result := &GenericAllocator{
+		target:          target,
+		targetArenaMask: target.CurrentOffset().p.arenaMask,
+		delegateClear:   opts.DelegateClearToUnderlyingAllocator,
+	}
 	if opts.AllocationLimitInBytes > 0 {
 		result.allocationLimitInBytes = int(opts.AllocationLimitInBytes)
 	}
@@ -145,7 +151,7 @@ func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.allocatedBytes += afterCallStats.AllocatedBytes - beforeCallStats.AllocatedBytes
 	a.onHeapAllocations += afterCallStats.CountOfOnHeapAllocations - beforeCallStats.CountOfOnHeapAllocations
 
-	result.arenaMask = a.arenaMask
+	result.arenaMask = a.thisArenaMask
 	return result, nil
 }
 
@@ -160,14 +166,14 @@ func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 // We'd suggest calling this method right before using the result pointer to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) ToRef(p Ptr) unsafe.Pointer {
-	if p.arenaMask != a.arenaMask {
+	if p.arenaMask != a.thisArenaMask {
 		panic("pointer isn't part of this arena")
 	}
 
 	if a.target == nil {
 		return nil
 	}
-	p.arenaMask = a.target.CurrentOffset().p.arenaMask
+	p.arenaMask = a.targetArenaMask
 	return a.target.ToRef(p)
 }
 
@@ -176,7 +182,7 @@ func (a *GenericAllocator) ToRef(p Ptr) unsafe.Pointer {
 func (a *GenericAllocator) CurrentOffset() Offset {
 	a.init()
 	result := a.target.CurrentOffset()
-	result.p.arenaMask = a.arenaMask
+	result.p.arenaMask = a.thisArenaMask
 	return result
 }
 
@@ -184,7 +190,7 @@ func (a *GenericAllocator) CurrentOffset() Offset {
 // According to DelegateClearToUnderlyingAllocator option, it will either call Clear on underlying allocator
 // or simply gets rid of it, so it will create a new target during the first call after Clear.
 //
-// Clear invocation also changes the arena.GenericAllocator.arenaMask
+// Clear invocation also changes the arena.GenericAllocator.thisArenaMask
 // so it can prevent some "use after free" arena.GenericAllocator.ToRef calls with arena.Ptr allocated before Clear,
 // but it can't catch usages of already converted values.
 // To avoid such situations, we'd suggest calling this method right before using the result pointer to eliminate its
@@ -192,11 +198,13 @@ func (a *GenericAllocator) CurrentOffset() Offset {
 func (a *GenericAllocator) Clear() {
 	if a.delegateClear {
 		a.target.Clear()
+		a.targetArenaMask = a.target.CurrentOffset().p.arenaMask
 	} else {
 		a.target = nil
+		a.targetArenaMask = 0
 	}
 
-	a.arenaMask = (a.arenaMask + 1) | 1
+	a.thisArenaMask = (a.thisArenaMask + 1) | 1
 	a.paddingOverhead = 0
 	a.dataBytes = 0
 	a.usedBytes = 0
@@ -267,16 +275,17 @@ func (a *GenericAllocator) EnhancedMetrics() EnhancedMetrics {
 // String provides a string snapshot of the current allocation offset.
 func (a *GenericAllocator) String() string {
 	a.init()
-	return fmt.Sprintf("arena{mask: %v target: %v}", a.arenaMask, a.target)
+	return fmt.Sprintf("arena{mask: %v target: %v}", a.thisArenaMask, a.target)
 }
 
 func (a *GenericAllocator) init() {
 	if a.target == nil {
 		a.target = &DynamicAllocator{}
+		a.targetArenaMask = a.target.CurrentOffset().p.arenaMask
 	}
-	if a.arenaMask == 0 {
+	if a.thisArenaMask == 0 {
 		// here we can give guarantees that sub-arena mask will differ from parent arena
 		modifier := uint16(rand.Uint32()) | 1
-		a.arenaMask = (a.target.CurrentOffset().p.arenaMask + modifier) | 1
+		a.thisArenaMask = (a.target.CurrentOffset().p.arenaMask + modifier) | 1
 	}
 }

@@ -277,7 +277,11 @@ func TestSimpleNestedSubArenas(t *testing.T) {
 
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, target)
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
@@ -289,11 +293,7 @@ func TestSimpleNestedSubArenas(t *testing.T) {
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, other)
-		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
-		bytesAllocationLimitsStand.check(t, other)
-		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
-		bufferAllocationLimitStand.check(t, other)
+		maskStand.check(t, target)
 	}
 }
 
@@ -323,7 +323,11 @@ func TestSimpleNestedSubArenasAndDelegatedClear(t *testing.T) {
 
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, target)
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
@@ -335,11 +339,7 @@ func TestSimpleNestedSubArenasAndDelegatedClear(t *testing.T) {
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, other)
-		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
-		bytesAllocationLimitsStand.check(t, other)
-		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
-		bufferAllocationLimitStand.check(t, other)
+		maskStand.check(t, target)
 	}
 }
 
@@ -370,7 +370,11 @@ func TestSimpleNestedSubArenasAndNestedDelegatedClear(t *testing.T) {
 
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, target)
+		maskStand.check(t, other)
+		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
+		bytesAllocationLimitsStand.check(t, other)
+		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
+		bufferAllocationLimitStand.check(t, other)
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
@@ -382,11 +386,7 @@ func TestSimpleNestedSubArenasAndNestedDelegatedClear(t *testing.T) {
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, other)
-		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
-		bytesAllocationLimitsStand.check(t, other)
-		bufferAllocationLimitStand := &arenaByteBufferWithErrorLimitationsAllocationCheckingStand{}
-		bufferAllocationLimitStand.check(t, other)
+		maskStand.check(t, target)
 	}
 }
 
@@ -403,10 +403,6 @@ func TestSimpleConsecutiveSubArenas(t *testing.T) {
 
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, target)
-	}
-	{
-		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, a)
 		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
 		bytesAllocationLimitsStand.check(t, a)
@@ -420,6 +416,10 @@ func TestSimpleConsecutiveSubArenas(t *testing.T) {
 		bytesAllocationLimitsStand.check(t, other)
 		bufferWithPanicAllocationLimitStand := &arenaByteBufferWithPanicLimitationsAllocationCheckingStand{}
 		bufferWithPanicAllocationLimitStand.check(t, other)
+	}
+	{
+		maskStand := &arenaMaskCheckingStand{}
+		maskStand.check(t, target)
 	}
 }
 
@@ -436,17 +436,6 @@ func TestSimpleConsecutiveSubArenasWithDelegatedClear(t *testing.T) {
 	stand := &basicArenaCheckingStand{}
 	stand.check(t, a)
 
-	other := arena.NewSubAllocator(target, arena.Options{
-		AllocationLimitInBytes:             2 * requiredBytesForBasicTest,
-		DelegateClearToUnderlyingAllocator: true,
-	})
-	otherStand := &basicArenaCheckingStand{}
-	otherStand.check(t, other)
-
-	{
-		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, target)
-	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
 		maskStand.check(t, a)
@@ -457,11 +446,7 @@ func TestSimpleConsecutiveSubArenasWithDelegatedClear(t *testing.T) {
 	}
 	{
 		maskStand := &arenaMaskCheckingStand{}
-		maskStand.check(t, other)
-		bytesAllocationLimitsStand := &arenaByteAllocationLimitsCheckingStand{}
-		bytesAllocationLimitsStand.check(t, other)
-		bufferWithPanicAllocationLimitStand := &arenaByteBufferWithPanicLimitationsAllocationCheckingStand{}
-		bufferWithPanicAllocationLimitStand.check(t, other)
+		maskStand.check(t, target)
 	}
 }
 
