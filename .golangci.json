@@ -2,7 +2,9 @@
   "run": {
     "skip-dirs": [
       "bin",
-      "cmd"
+      "cmd",
+      "alignment_bench_test",
+      "allocation_bench_test"
     ]
   },
   "linters-settings": {

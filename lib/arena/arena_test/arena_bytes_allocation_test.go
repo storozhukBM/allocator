@@ -197,7 +197,8 @@ type arenaByteAllocationLimitsCheckingStand struct{}
 func (s *arenaByteAllocationLimitsCheckingStand) check(t *testing.T, target allocator) {
 	alloc := arena.NewBytesView(target)
 	{
-		arenaBytes, allocErr := alloc.MakeBytes(target.Metrics().AvailableBytes + 1)
+		availableBytes := target.Metrics().AvailableBytes
+		arenaBytes, allocErr := alloc.MakeBytes(availableBytes + 1)
 		assert(allocErr != nil, "allocation limit should be triggered")
 		assert(arenaBytes == arena.Bytes{}, "arenaBytes should be empty")
 	}

@@ -10,6 +10,7 @@ import (
 	. "github.com/storozhukBM/build"
 )
 
+const profileName = `profile.out`
 const coverageName = `coverage.out`
 const codeGenerationToolName = `allocgen`
 const makeExecutable = `make`
@@ -20,24 +21,35 @@ var parallelism = strconv.Itoa(runtime.NumCPU() * runtime.NumCPU())
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
-	{`build`, b.RunCmd(Go, `build`, `./...`)},
-	{`buildInlineBounds`, b.ShRunCmd(
-		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
-	)},
-
 	{`itself`, b.RunCmd(Go, `build`, `-o`, makeExecutable, `./cmd/internal`)},
 
-	{`clean`, clean},
-	{`cleanAll`, func() { clean(); cleanExecutables() }},
-
-	{`lint`, runLinters},
+	{`build`, b.RunCmd(Go, `build`, `./...`)},
+	{`test`, func() { testLib(); testCodeGen() }},
+	{`testRace`, testRace},
 	{`testLib`, testLib},
 	{`testCodeGen`, testCodeGen},
-	{`testRace`, testRace},
-	{`test`, func() { testLib(); testCodeGen() }},
+
+	{`lint`, runLinters},
 	{`verify`, func() { testLib(); testCodeGen(); runLinters() }},
 
 	{`generateTestAllocator`, generateTestAllocator},
+	{`clean`, clean},
+	{`cleanAll`, func() { clean(); cleanExecutables() }},
+
+	{`pprof`, b.RunCmd(Go, `tool`, `pprof`, profileName)},
+	{`profileRawAlloc`, profileAllocationBenchmark(`BenchmarkRawAllocator`)},
+	{`profileManagedRawAlloc`, profileAllocationBenchmark(`BenchmarkManagedRawAllocator`)},
+	{`profileDynamicAlloc`, profileAllocationBenchmark(`BenchmarkDynamicAllocator`)},
+	{`profileGenericAlloc`, profileAllocationBenchmark(`BenchmarkGenericAllocatorWithSubClean`)},
+
+	{`benchAlloc`, b.RunCmd(
+		Go, `test`, `-bench=.`, `-count=5`,
+		`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
+	)},
+	{`benchAlignment`, b.RunCmd(
+		Go, `test`, `-bench=.`, `-benchtime=5s`, `-count=5`,
+		`github.com/storozhukBM/allocator/lib/arena/alignment_bench_test`,
+	)},
 
 	{`coverage`, func() {
 		clean()
@@ -56,6 +68,21 @@ var commands = []Command{
 		)
 		b.Run(Go, `tool`, `cover`, `-html=`+coverageName)
 	}},
+
+	{`buildInlineBounds`, b.ShRunCmd(
+		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
+	)},
+}
+
+func profileAllocationBenchmark(benchmarkName string) func() {
+	return func() {
+		b.Run(
+			Go, `test`, `-run=xxx`, `-bench=`+benchmarkName, `-benchtime=15s`,
+			`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
+			`-cpuprofile`, profileName,
+		)
+		b.Run(Go, `tool`, `pprof`, `-web`, profileName)
+	}
 }
 
 func generateTestAllocator() {
@@ -99,6 +126,8 @@ func clean() {
 func forceClean() {
 	defer b.AddTarget("clean")()
 	b.Run(Go, `clean`, `./...`)
+	b.Run(`rm`, `-f`, profileName)
+	b.Run(`rm`, `-f`, `allocation_bench_test.test`)
 	b.Run(`rm`, `-f`, coverageName)
 	b.Run(`rm`, `-f`, codeGenerationToolName)
 	b.Run(`rm`, `-f`, `./example/main`)
@@ -121,7 +150,10 @@ func runLinters() {
 	}
 	if runtime.GOOS == "windows" {
 		// some linters do not support windows, so we use only default set
-		b.Run(ciLinterExec, `-j`, parallelism, `run`, `--no-config`, `--skip-dirs=cmd`)
+		b.Run(
+			ciLinterExec, `-j`, parallelism, `run`, `--no-config`,
+			`--skip-dirs=cmd`, `--skip-dirs=alignment_bench_test`, `--skip-dirs=allocation_bench_test`,
+		)
 		return
 	}
 	b.Run(ciLinterExec, `-j`, parallelism, `run`)

@@ -10,6 +10,7 @@ type allocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
 	CurrentOffset() Offset
 	ToRef(p Ptr) unsafe.Pointer
+	Stats() Stats
 	Metrics() Metrics
 	Clear()
 }
@@ -68,7 +69,7 @@ type Options struct {
 func NewGenericAllocator(opts Options) *GenericAllocator {
 	result := &GenericAllocator{delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.InitialCapacity > 0 {
-		result.target = dynamicWithInitialCapacity(opts.InitialCapacity)
+		result.target = NewDynamicAllocatorWithInitialCapacity(opts.InitialCapacity)
 		result.allocatedBytes += result.target.Metrics().AllocatedBytes
 	}
 	if opts.AllocationLimitInBytes > 0 {
@@ -102,6 +103,9 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 // It returns arena.Ptr value, which is basically
 // an offset and index of the target arena used for this allocation.
 //
+// alignment - should be a power of 2 number and can't be 0
+// In case of any violations, panic will be thrown.
+//
 // arena.GenericAllocator has "limits" functionality, so it checks
 // if a future allocation can violate specified allocationLimitInBytes
 // and returns arena.AllocationLimitError, if so.
@@ -115,27 +119,31 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 // and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
-	targetAlignment := max(int(alignment), 1)
 	targetSize := int(size)
-	targetPadding := calculateRequiredPadding(a.target.CurrentOffset(), targetAlignment)
+	targetAlignment := uint32(alignment)
 
-	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+targetPadding > a.allocationLimitInBytes {
+	if !isPowerOfTwo(targetAlignment) {
+		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
+	}
+	targetPadding := calculatePadding(a.target.CurrentOffset().p.offset, targetAlignment)
+
+	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+int(targetPadding) > a.allocationLimitInBytes {
 		return Ptr{}, AllocationLimitError
 	}
 
-	beforeCallMetrics := a.target.Metrics()
+	beforeCallStats := a.target.Stats()
 	result, allocErr := a.target.Alloc(size, alignment)
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
-	afterCallMetrics := a.target.Metrics()
+	afterCallStats := a.target.Stats()
 
 	a.countOfAllocations++
-	a.usedBytes += afterCallMetrics.UsedBytes - beforeCallMetrics.UsedBytes
+	a.usedBytes += afterCallStats.UsedBytes - beforeCallStats.UsedBytes
 	a.dataBytes += targetSize
 	a.paddingOverhead = a.usedBytes - a.dataBytes
-	a.allocatedBytes += afterCallMetrics.AllocatedBytes - beforeCallMetrics.AllocatedBytes
-	a.onHeapAllocations += afterCallMetrics.CountOfOnHeapAllocations - beforeCallMetrics.CountOfOnHeapAllocations
+	a.allocatedBytes += afterCallStats.AllocatedBytes - beforeCallStats.AllocatedBytes
+	a.onHeapAllocations += afterCallStats.CountOfOnHeapAllocations - beforeCallStats.CountOfOnHeapAllocations
 
 	result.arenaMask = a.arenaMask
 	return result, nil
@@ -194,6 +202,16 @@ func (a *GenericAllocator) Clear() {
 	a.usedBytes = 0
 }
 
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *GenericAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
+	}
+}
+
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *GenericAllocator) Metrics() Metrics {
@@ -202,11 +220,13 @@ func (a *GenericAllocator) Metrics() Metrics {
 	}
 	targetArenaMetrics := a.target.Metrics()
 	result := Metrics{
-		UsedBytes:                a.usedBytes,
-		AvailableBytes:           targetArenaMetrics.AvailableBytes,
-		AllocatedBytes:           a.allocatedBytes,
-		MaxCapacity:              targetArenaMetrics.MaxCapacity,
-		CountOfOnHeapAllocations: a.onHeapAllocations,
+		Stats: Stats{
+			UsedBytes:                a.usedBytes,
+			AllocatedBytes:           a.allocatedBytes,
+			CountOfOnHeapAllocations: a.onHeapAllocations,
+		},
+		AvailableBytes: targetArenaMetrics.AvailableBytes,
+		MaxCapacity:    targetArenaMetrics.MaxCapacity,
 	}
 	if a.allocationLimitInBytes > 0 {
 		result.MaxCapacity = a.allocationLimitInBytes

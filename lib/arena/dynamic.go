@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
 	"unsafe"
 )
-
-const defaultFirstBucketSize int = 16 * 1024
 
 // DynamicAllocator is the dynamically growable bump pointer allocator.
 //
@@ -23,15 +20,16 @@ const defaultFirstBucketSize int = 16 * 1024
 // General advice would be to use arena.GenericAllocator, available in this library,
 // and refer to this one only if you really need to.
 type DynamicAllocator struct {
-	freeListOfClearArenas []RawAllocator
+	freeListOfClearArenas minHeapOfClearArenas
 
 	arenas          []RawAllocator
 	currentArena    RawAllocator
 	currentArenaIdx int
 
-	allocatedBytes    int
 	usedBytes         int
+	allocatedBytes    int
 	onHeapAllocations int
+	maxCapacity       int
 
 	arenaMask uint16
 
@@ -43,7 +41,7 @@ func NewDynamicAllocator() *DynamicAllocator {
 	return &DynamicAllocator{}
 }
 
-func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
+func NewDynamicAllocatorWithInitialCapacity(size uint) *DynamicAllocator {
 	result := &DynamicAllocator{}
 	result.grow(int(size))
 	return result
@@ -53,6 +51,9 @@ func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
 //
 // It returns arena.Ptr value, which is basically
 // an offset and index of arena used for this allocation.
+//
+// alignment - should be a power of 2 number and can't be 0
+// In case of any violations, panic will be thrown.
 //
 // arena.DynamicAllocator can grow dynamically if required but has to limits functionality,
 // so for such features, please refer to arena.GenericAllocator.
@@ -66,17 +67,23 @@ func dynamicWithInitialCapacity(size uint) *DynamicAllocator {
 // and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
-	targetSize := int(size)
-	targetAlignment := max(int(alignment), 1)
-	padding := calculateRequiredPadding(a.currentArena.CurrentOffset(), targetAlignment)
-	if targetSize+padding > len(a.currentArena.buffer)-a.currentArena.offset {
-		a.grow(targetSize + padding)
+	targetSize := uint32(size)
+	targetAlignment := uint32(alignment)
+
+	if !isPowerOfTwo(targetAlignment) {
+		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
+	}
+
+	padding := calculatePadding(a.currentArena.offset, targetAlignment)
+	resultSize := targetSize + padding
+	if resultSize > uint32(len(a.currentArena.buffer))-a.currentArena.offset {
+		a.grow(int(resultSize))
 	}
 	result, allocErr := a.currentArena.Alloc(size, uintptr(targetAlignment))
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
-	a.usedBytes += targetSize + padding
+	a.usedBytes += int(resultSize)
 	result.bucketIdx = uint8(a.currentArenaIdx)
 	result.arenaMask = a.arenaMask
 	return result, nil
@@ -127,37 +134,45 @@ func (a *DynamicAllocator) CurrentOffset() Offset {
 func (a *DynamicAllocator) Clear() {
 	if len(a.currentArena.buffer) > 0 {
 		a.currentArena.Clear()
-		a.freeListOfClearArenas = append(a.freeListOfClearArenas, a.currentArena)
+		a.freeListOfClearArenas.Push(a.currentArena)
 	}
 	a.currentArena = RawAllocator{}
 
 	for _, ar := range a.arenas {
 		if len(ar.buffer) > 0 {
 			ar.Clear()
-			a.freeListOfClearArenas = append(a.freeListOfClearArenas, ar)
+			a.freeListOfClearArenas.Push(ar)
 		}
 	}
 	a.arenas = a.arenas[:0]
-
-	sort.Slice(a.freeListOfClearArenas, func(i, j int) bool {
-		return a.freeListOfClearArenas[i].Metrics().MaxCapacity < a.freeListOfClearArenas[j].Metrics().MaxCapacity
-	})
 
 	a.currentArenaIdx = 0
 	a.usedBytes = 0
 	a.arenaMask = (a.arenaMask + 1) | 1
 }
 
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *DynamicAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                a.usedBytes,
+		AllocatedBytes:           a.allocatedBytes,
+		CountOfOnHeapAllocations: a.onHeapAllocations,
+	}
+}
+
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *DynamicAllocator) Metrics() Metrics {
-	currentArenaMetrics := a.currentArena.Metrics()
 	return Metrics{
-		UsedBytes:                a.usedBytes,
-		AvailableBytes:           currentArenaMetrics.AvailableBytes,
-		AllocatedBytes:           a.allocatedBytes,
-		MaxCapacity:              a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32,
-		CountOfOnHeapAllocations: a.onHeapAllocations,
+		Stats: Stats{
+			UsedBytes:                a.usedBytes,
+			AllocatedBytes:           a.allocatedBytes,
+			CountOfOnHeapAllocations: a.onHeapAllocations,
+		},
+		// we inline AvailableBytes calculation by hand to avoid full call to a.currentArena.Metrics
+		AvailableBytes: len(a.currentArena.buffer) - int(a.currentArena.offset),
+		MaxCapacity:    a.maxCapacity,
 	}
 }
 
@@ -168,8 +183,7 @@ func (a *DynamicAllocator) String() string {
 }
 
 func (a *DynamicAllocator) grow(requiredAvailableSize int) {
-	minSizeOfNewArena := max(defaultFirstBucketSize, requiredAvailableSize*2)
-	newSize := max(len(a.currentArena.buffer)*2, minSizeOfNewArena)
+	newSize := max(len(a.currentArena.buffer)*2, requiredAvailableSize*2)
 	newArena := a.getNewArena(newSize)
 	if a.currentArena.buffer != nil {
 		a.arenas = append(a.arenas, a.currentArena)
@@ -179,10 +193,9 @@ func (a *DynamicAllocator) grow(requiredAvailableSize int) {
 }
 
 func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
-	if a.freeListOfClearArenas == nil {
-		newRawArena := NewRawAllocator(uint(size))
-		a.allocatedBytes += size
-		a.onHeapAllocations++
+	if len(a.freeListOfClearArenas.heap) == 0 {
+		newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
+		a.updateAllocationMetrics(len(newRawArena.buffer))
 		return *newRawArena
 	}
 
@@ -190,39 +203,77 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	if ok {
 		return newArenaFromFreeList
 	}
-
-	// there will be nothing suitable in free list in future
-	// because next sizes will always be bigger than current
-	a.freeListOfClearArenas = nil
-	newRawArena := NewRawAllocator(uint(size))
-	a.allocatedBytes += size
-	a.onHeapAllocations++
+	newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
+	a.updateAllocationMetrics(len(newRawArena.buffer))
 	return *newRawArena
 }
 
+func (a *DynamicAllocator) updateAllocationMetrics(allocatedBytes int) {
+	a.allocatedBytes += allocatedBytes
+	a.onHeapAllocations++
+	a.maxCapacity = a.allocatedBytes + (math.MaxInt8-len(a.arenas))*math.MaxUint32
+}
+
 func (a *DynamicAllocator) tryToPickClearArenaFromFreeList(size int) (RawAllocator, bool) {
-	candidateIdx := sort.Search(len(a.freeListOfClearArenas), func(i int) bool {
-		return a.freeListOfClearArenas[i].Metrics().MaxCapacity >= size
-	})
-	if candidateIdx < len(a.freeListOfClearArenas) {
-		newArena := a.freeListOfClearArenas[candidateIdx]
-		// clear nonsuitable candidates
-		for idx := range a.freeListOfClearArenas {
-			a.freeListOfClearArenas[idx] = RawAllocator{}
-			if idx == candidateIdx {
-				break
-			}
+	for {
+		candidate, ok := a.freeListOfClearArenas.Pop()
+		if !ok {
+			return RawAllocator{}, false
 		}
-		if candidateIdx+1 != len(a.freeListOfClearArenas) {
-			a.freeListOfClearArenas = a.freeListOfClearArenas[candidateIdx+1:]
+		if len(candidate.buffer) < size {
+			continue
 		}
-		return newArena, true
+		return candidate, true
 	}
-	return RawAllocator{}, false
 }
 
 func (a *DynamicAllocator) init() {
 	if a.arenaMask == 0 {
 		a.arenaMask = uint16(rand.Uint32()) | 1
 	}
+}
+
+type minHeapOfClearArenas struct {
+	heap []RawAllocator
+}
+
+func (h *minHeapOfClearArenas) Push(arena RawAllocator) {
+	h.heap = append(h.heap, arena)
+	currentIdx := len(h.heap) - 1
+	for {
+		parentIdx := (currentIdx - 1) / 2
+		if parentIdx == currentIdx || len(h.heap[currentIdx].buffer) >= len(h.heap[parentIdx].buffer) {
+			break
+		}
+		h.heap[currentIdx], h.heap[parentIdx] = h.heap[parentIdx], h.heap[currentIdx]
+		currentIdx = parentIdx
+	}
+}
+
+func (h *minHeapOfClearArenas) Pop() (RawAllocator, bool) {
+	if len(h.heap) == 0 {
+		return RawAllocator{}, false
+	}
+	result := h.heap[0]
+	h.heap[0] = h.heap[len(h.heap)-1]
+	currentIdx := 0
+
+	for {
+		leftIdx := 2*currentIdx + 1
+		smallestBetweenChildrenIdx := leftIdx
+		if leftIdx >= len(h.heap) || leftIdx < 0 {
+			break
+		}
+		rightIdx := leftIdx + 1
+		if rightIdx < len(h.heap) && rightIdx > 0 && len(h.heap[rightIdx].buffer) < len(h.heap[leftIdx].buffer) {
+			smallestBetweenChildrenIdx = rightIdx
+		}
+		if len(h.heap[smallestBetweenChildrenIdx].buffer) >= len(h.heap[currentIdx].buffer) {
+			break
+		}
+		h.heap[currentIdx], h.heap[smallestBetweenChildrenIdx] = h.heap[smallestBetweenChildrenIdx], h.heap[currentIdx]
+		currentIdx = smallestBetweenChildrenIdx
+	}
+	h.heap = h.heap[0 : len(h.heap)-1]
+	return result, true
 }

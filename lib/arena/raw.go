@@ -5,6 +5,8 @@ import (
 	"unsafe"
 )
 
+const minInternalBufferSize uint32 = 64 * 1024
+
 // RawAllocator is the simplest bump pointer allocator
 // that can operate on top of once allocated byte slice.
 //
@@ -19,21 +21,35 @@ import (
 // and you understand all its caveats and potentially unsafe behavior.
 type RawAllocator struct {
 	buffer []byte
-	offset int
+	offset uint32
 }
 
 // NewRawAllocator creates an instance of arena.RawAllocator
 // and allocates the whole it's underlying buffer from the heap in advance.
-func NewRawAllocator(size uint) *RawAllocator {
+func NewRawAllocator(size uint32) *RawAllocator {
 	return &RawAllocator{
 		buffer: make([]byte, int(size)),
 	}
+}
+
+// NewRawAllocatorWithOptimalSize creates an instance of arena.RawAllocator
+// and allocates the whole it's underlying buffer from the heap in advance.
+// This method will figure-out size that will be >= size and will enable certain
+// underlying optimizations like vectorized Clear operation.
+func NewRawAllocatorWithOptimalSize(size uint32) *RawAllocator {
+	targetSize := uint32(max(int(size), int(minInternalBufferSize)))
+	additionalPadding := calculatePadding(targetSize, minInternalBufferSize)
+	return NewRawAllocator(targetSize + additionalPadding)
 }
 
 // Alloc performs allocation within an underlying buffer.
 //
 // It returns arena.Ptr value, which is basically an offset of the allocated value
 // inside the underlying buffer.
+//
+// alignment - should be a power of 2 number and can't be 0
+// Important: this is a raw arena, it will not check violations of this contract.
+// Any violations will lead to unpredictable behavior
 //
 // Alloc can return arena.AllocationLimitError if requested value size
 // can't be fitted into the current buffer.
@@ -46,18 +62,18 @@ func NewRawAllocator(size uint) *RawAllocator {
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
-	targetSize := int(size)
-	targetAlignment := int(alignment)
+	targetSize := uint32(size)
+	targetAlignment := uint32(alignment)
+	paddingSize := calculatePadding(a.offset, targetAlignment)
 
-	paddingSize := calculateRequiredPadding(a.CurrentOffset(), targetAlignment)
-	if targetSize+paddingSize > len(a.buffer)-a.offset {
+	if targetSize+paddingSize > uint32(len(a.buffer))-a.offset {
 		return Ptr{}, AllocationLimitError
 	}
 	a.offset += paddingSize
 
 	allocationOffset := a.offset
 	a.offset += targetSize
-	return Ptr{offset: uint32(allocationOffset)}, nil
+	return Ptr{offset: allocationOffset}, nil
 }
 
 // ToRef converts arena.Ptr to unsafe.Pointer.
@@ -80,7 +96,7 @@ func (a *RawAllocator) ToRef(p Ptr) unsafe.Pointer {
 // CurrentOffset returns the current allocation offset.
 // This method can be primarily used to build other allocators on top of arena.RawAllocator.
 func (a *RawAllocator) CurrentOffset() Offset {
-	return Offset{p: Ptr{offset: uint32(a.offset)}}
+	return Offset{p: Ptr{offset: a.offset}}
 }
 
 // Clear fills the underlying buffer with zeros and moves offset to zero.
@@ -90,19 +106,33 @@ func (a *RawAllocator) CurrentOffset() Offset {
 // To avoid such situation please refer to other allocator implementations from this library
 // that provide additional safety checks.
 func (a *RawAllocator) Clear() {
-	clearBytes(a.buffer)
+	bytesToClear := a.buffer
+	if len(bytesToClear) > 0 {
+		padding := calculatePadding(a.offset, minInternalBufferSize)
+		idx := min(int(a.offset+padding), len(bytesToClear))
+		bytesToClear = bytesToClear[:idx]
+	}
+	clearBytes(bytesToClear)
 	a.offset = 0
+}
+
+// Stats provides a snapshot of essential allocation statistics,
+// that can be used by end-users or other allocators for introspection.
+func (a *RawAllocator) Stats() Stats {
+	return Stats{
+		UsedBytes:                int(a.offset),
+		AllocatedBytes:           len(a.buffer),
+		CountOfOnHeapAllocations: 0,
+	}
 }
 
 // Metrics provides a snapshot of current allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *RawAllocator) Metrics() Metrics {
 	return Metrics{
-		UsedBytes:                a.offset,
-		AvailableBytes:           len(a.buffer) - a.offset,
-		AllocatedBytes:           len(a.buffer),
-		MaxCapacity:              len(a.buffer),
-		CountOfOnHeapAllocations: 0,
+		Stats:          a.Stats(),
+		AvailableBytes: len(a.buffer) - int(a.offset),
+		MaxCapacity:    len(a.buffer),
 	}
 }
 
