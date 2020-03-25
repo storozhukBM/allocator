@@ -7,7 +7,7 @@ import (
 )
 
 type bufferAllocator interface {
-	Alloc(size uintptr, alignment uintptr) (Ptr, error)
+	AllocUnaligned(size uintptr) (Ptr, error)
 	ToRef(p Ptr) unsafe.Pointer
 	Metrics() Metrics
 }
@@ -88,7 +88,7 @@ func NewBytesView(alloc bufferAllocator) *BytesView {
 // MakeBytes is a direct analog of make([]byte, len)
 // It allocates a slice with specified length inside your target allocator.
 func (s *BytesView) MakeBytes(len int) (Bytes, error) {
-	slicePtr, allocErr := s.alloc.Alloc(uintptr(len), 1)
+	slicePtr, allocErr := s.alloc.AllocUnaligned(uintptr(len))
 	if allocErr != nil {
 		return Bytes{}, allocErr
 	}
@@ -233,7 +233,7 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 		return target, nil
 	}
 
-	nextPtr, probeAllocErr := s.alloc.Alloc(0, 1)
+	nextPtr, probeAllocErr := s.alloc.AllocUnaligned(0)
 	if probeAllocErr != nil {
 		return Bytes{}, probeAllocErr
 	}
@@ -241,7 +241,7 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 	// we can try to just enhance current buffer
 	nextAllocationIsRightAfterTargetSlice := nextPtr.offset == target.data.offset+uint32(target.cap)
 	if nextAllocationIsRightAfterTargetSlice && s.alloc.Metrics().AvailableBytes >= requiredSize {
-		_, enhancingErr := s.alloc.Alloc(uintptr(requiredSize), 1)
+		_, enhancingErr := s.alloc.AllocUnaligned(uintptr(requiredSize))
 		if enhancingErr != nil {
 			return Bytes{}, enhancingErr
 		}

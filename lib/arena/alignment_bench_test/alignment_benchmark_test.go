@@ -29,6 +29,15 @@ func calculateRequiredPaddingMaskUnsafe(o uint32, targetAlignment uint32) uint32
 	return (targetAlignment - (o & mask)) & mask
 }
 
+func calculateRequiredPaddingMaskUnsafeWithShort(o uint32, targetAlignment uint32) uint32 {
+	if targetAlignment == 1 {
+		return 0
+	}
+	mask := targetAlignment - 1
+	// go compiler should optimise it and use mask operations
+	return (targetAlignment - (o & mask)) & mask
+}
+
 func benchmarkAlignment(b *testing.B, alignmentFunc func(o, align uint32) uint32) {
 	b.StopTimer()
 
@@ -62,6 +71,10 @@ func BenchmarkAlignMaskUnsafe(b *testing.B) {
 	benchmarkAlignment(b, calculateRequiredPaddingMaskUnsafe)
 }
 
+func BenchmarkAlignMaskUnsafeWithShort(b *testing.B) {
+	benchmarkAlignment(b, calculateRequiredPaddingMaskUnsafeWithShort)
+}
+
 func BenchmarkAlignMask(b *testing.B) {
 	benchmarkAlignment(b, calculateRequiredPaddingMask)
 }
@@ -74,10 +87,11 @@ func TestAlternatives(t *testing.T) {
 		def := calculateRequiredPadding(o, align)
 		mask := calculateRequiredPaddingMask(o, align)
 		unsfe := calculateRequiredPaddingMaskUnsafe(o, align)
-		if def != mask || mask != unsfe {
+		unsfeWS := calculateRequiredPaddingMaskUnsafeWithShort(o, align)
+		if def != mask || mask != unsfe || unsfe != unsfeWS {
 			fmt.Printf(
-				"o: %v; align: %v; def: %v; mask: %v; unsfe: %v\n",
-				o, align, def, mask, unsfe,
+				"o: %v; align: %v; def: %v; mask: %v; unsfe: %v; unsfeWS: %v\n",
+				o, align, def, mask, unsfe, unsfeWS,
 			)
 			t.FailNow()
 		}

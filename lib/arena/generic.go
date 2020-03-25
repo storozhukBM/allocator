@@ -8,6 +8,7 @@ import (
 
 type allocator interface {
 	Alloc(size uintptr, alignment uintptr) (Ptr, error)
+	AllocUnaligned(size uintptr) (Ptr, error)
 	CurrentOffset() Offset
 	ToRef(p Ptr) unsafe.Pointer
 	Stats() Stats
@@ -102,6 +103,51 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 	}
 	result.init()
 	return result
+}
+
+// AllocUnaligned performs allocation within an underlying target allocator, but without automatic alignment.
+// This method is more performant and can be used to allocate memory with an alignment of 1 byte
+// or to create a dedicated method that will allocate only object with the same alignment,
+// so there are no additional padding calculations required.
+//
+// IMPORTANT, this method is potentially UNSAFE to use, please if you use it,
+// try to test/run your program with race detector or `-d=checkptr` flag.
+//
+// It returns arena.Ptr value, which is basically
+// an offset and index of the target arena used for this allocation.
+//
+// arena.GenericAllocator has "limits" functionality, so it checks
+// if a future allocation can violate specified allocationLimitInBytes
+// and returns arena.AllocationLimitError, if so.
+//
+// arena.Ptr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
+func (a *GenericAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
+	a.init()
+	if a.allocationLimitInBytes > 0 && a.usedBytes+int(size) > a.allocationLimitInBytes {
+		return Ptr{}, AllocationLimitError
+	}
+
+	beforeCallStats := a.target.Stats()
+	result, allocErr := a.target.AllocUnaligned(size)
+	if allocErr != nil {
+		return Ptr{}, allocErr
+	}
+	afterCallStats := a.target.Stats()
+
+	a.countOfAllocations++
+	a.usedBytes += afterCallStats.UsedBytes - beforeCallStats.UsedBytes
+	a.dataBytes += int(size)
+	a.allocatedBytes += afterCallStats.AllocatedBytes - beforeCallStats.AllocatedBytes
+	a.onHeapAllocations += afterCallStats.CountOfOnHeapAllocations - beforeCallStats.CountOfOnHeapAllocations
+
+	result.arenaMask = a.thisArenaMask
+	return result, nil
 }
 
 // Alloc performs allocation within the underlying target allocator.

@@ -47,6 +47,43 @@ func NewDynamicAllocatorWithInitialCapacity(size uint) *DynamicAllocator {
 	return result
 }
 
+// AllocUnaligned performs allocation within an underlying arenas, but without automatic alignment.
+// This method is more performant and can be used to allocate memory with an alignment of 1 byte
+// or to create a dedicated method that will allocate only object with the same alignment,
+// so there are no additional padding calculations required.
+//
+// IMPORTANT, this method is potentially UNSAFE to use, please if you use it,
+// try to test/run your program with race detector or `-d=checkptr` flag.
+//
+// It returns arena.Ptr value, which is basically
+// an offset and index of arena used for this allocation.
+//
+// arena.DynamicAllocator can grow dynamically if required but has to limits functionality,
+// so for such features, please refer to arena.GenericAllocator.
+//
+// arena.Ptr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
+func (a *DynamicAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
+	a.init()
+	targetSize := uint32(size)
+	if targetSize > uint32(len(a.currentArena.buffer))-a.currentArena.offset {
+		a.grow(int(targetSize))
+	}
+	result, allocErr := a.currentArena.AllocUnaligned(size)
+	if allocErr != nil {
+		return Ptr{}, allocErr
+	}
+	a.usedBytes += int(targetSize)
+	result.bucketIdx = uint8(a.currentArenaIdx)
+	result.arenaMask = a.arenaMask
+	return result, nil
+}
+
 // Alloc performs allocation within underlying arenas.
 //
 // It returns arena.Ptr value, which is basically
