@@ -42,6 +42,37 @@ func NewRawAllocatorWithOptimalSize(size uint32) *RawAllocator {
 	return NewRawAllocator(targetSize + additionalPadding)
 }
 
+// AllocUnaligned performs allocation within an underlying buffer, but without automatic alignment.
+// This method is more performant and can be used to allocate memory with an alignment of 1 byte
+// or to create a dedicated method that will allocate only object with the same alignment,
+// so there are no additional padding calculations required.
+//
+// IMPORTANT, this method is potentially UNSAFE to use, please if you use it,
+// try to test/run your program with race detector or `-d=checkptr` flag.
+//
+// It returns arena.Ptr value, which is basically an offset of the allocated value
+// inside the underlying buffer.
+//
+// Alloc can return arena.AllocationLimitError if requested value size
+// can't be fitted into the current buffer.
+//
+// arena.Ptr is a simple struct that should be passed by value and
+// is not considered by Go runtime as a legit pointer type.
+// So the GC can skip it during the concurrent mark phase.
+//
+// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// but we'd suggest to do it right before use to eliminate its visibility scope
+// and potentially prevent it's escaping to the heap.
+func (a *RawAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
+	targetSize := uint32(size)
+	if targetSize > uint32(len(a.buffer))-a.offset {
+		return Ptr{}, AllocationLimitError
+	}
+	allocationOffset := a.offset
+	a.offset += targetSize
+	return Ptr{offset: allocationOffset}, nil
+}
+
 // Alloc performs allocation within an underlying buffer.
 //
 // It returns arena.Ptr value, which is basically an offset of the allocated value

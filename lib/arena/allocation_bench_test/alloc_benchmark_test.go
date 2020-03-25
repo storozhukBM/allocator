@@ -15,6 +15,7 @@ const MB = 1024 * KB
 
 type allocator interface {
 	Alloc(size uintptr, alignment uintptr) (arena.Ptr, error)
+	AllocUnaligned(size uintptr) (arena.Ptr, error)
 	ToRef(p arena.Ptr) unsafe.Pointer
 	Metrics() arena.Metrics
 	Clear()
@@ -224,6 +225,7 @@ func BenchmarkDynamicAllocator(b *testing.B) {
 
 func runBenchmark(b *testing.B, a benchAlloc, liveSetSize uint) {
 	differentSizeAllocationProfile(b, a, liveSetSize)
+	//differentSizeAllocationProfileWithoutCleanAccounted(b, a, liveSetSize)
 	//sameSizeAllocationProfile(b, a, liveSet)
 }
 
@@ -237,6 +239,36 @@ func init() {
 		sizesSlice[i] = uint16((1 << (3 + rand.Intn(12))) * (1 + rand.Intn(3)))
 		readIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
 		writeIdx[i] = uint16(rand.Intn(int(sizesSlice[i])))
+	}
+}
+
+func differentSizeAllocationProfileWithoutCleanAccounted(b *testing.B, a benchAlloc, liveSetSize uint) {
+	benchState := 0
+	currentSize := 0
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		idx := i & sizesMask
+		allocSize := sizesSlice[idx]
+
+		currentSize += int(allocSize)
+		if currentSize >= int(liveSetSize) {
+			b.StopTimer()
+			a.clear()
+			currentSize = 0
+			b.StartTimer()
+		}
+
+		bytes, allocErr := a.allocateBytes(int(allocSize))
+		if allocErr != nil {
+			b.Error(allocErr)
+			b.FailNow()
+		}
+		bytes[writeIdx[idx]] = 234
+		benchState += int(bytes[readIdx[idx]])
+	}
+	b.StopTimer()
+	if rand.Float64() < 0.00001 {
+		fmt.Printf("N: %d; %d\n", b.N, benchState)
 	}
 }
 

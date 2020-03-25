@@ -11,6 +11,7 @@ import (
 
 type allocator interface {
 	Alloc(size, alignment uintptr) (arena.Ptr, error)
+	AllocUnaligned(size uintptr) (arena.Ptr, error)
 	ToRef(ptr arena.Ptr) unsafe.Pointer
 	CurrentOffset() arena.Offset
 	Stats() arena.Stats
