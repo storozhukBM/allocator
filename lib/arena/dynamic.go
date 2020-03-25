@@ -41,7 +41,10 @@ func NewDynamicAllocator() *DynamicAllocator {
 	return &DynamicAllocator{}
 }
 
-func NewDynamicAllocatorWithInitialCapacity(size uint) *DynamicAllocator {
+// NewDynamicAllocatorWithInitialCapacity creates an instance of arena.DynamicAllocator
+// with specified initial capacity that can be changed or aligned in such a way
+// that the resulting initial size can be bigger than requests for performance optimization reasons.
+func NewDynamicAllocatorWithInitialCapacity(size uint32) *DynamicAllocator {
 	result := &DynamicAllocator{}
 	result.grow(int(size))
 	return result

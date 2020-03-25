@@ -14,7 +14,7 @@ const minInternalBufferSize uint32 = 64 * 1024
 // but it is the fastest implementation provided by this library,
 // and it is created as a building block that we use to implement other allocators.
 //
-// All critical path methods like `Alloc` and `ToRef` are designed to be inalienable.
+// All critical path methods like `Alloc`, `AllocUnaligned` and `ToRef` are designed to be inalienable.
 //
 // General advice would be to use other more high-level implementations like arena.GenericAllocator,
 // available in this library, and refer to this one only if you really need to,

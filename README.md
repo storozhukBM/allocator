@@ -18,14 +18,7 @@ go run ./cmd/internal itself
 ./make verify
 ```
 
-TODO:
-First Release scope
-1. Add maxUInt32 size limit to raw allocator 
-1. whole documentation with notion of unsafe semantics
-1. mention thread safety in documentation, and share of arena allocated resources between goroutines
-1. crate comprehensive set of benchmarks, profile everything and fix obvious bottlenecks
-
-Second Release
+Roadmap
 1. arena map on top of linear hashing alg
 1. instrumented arena
 1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)

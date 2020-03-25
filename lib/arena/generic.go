@@ -2,6 +2,7 @@ package arena
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"unsafe"
 )
@@ -50,16 +51,16 @@ type GenericAllocator struct {
 // Options is a structure used to configure arena.GenericAllocator.
 //
 // You can configure:
-//  - InitialCapacity - initial capacity of the underlying allocator,
-//    if not specified we will use the default capacity of the underlying allocator.
 //  - AllocationLimitInBytes - upper limit for allocations,
 //    if not specified we will use the limit of the underlying allocator.
+//  - InitialCapacity - initial capacity of the underlying allocator,
+//    if not specified we will use the default capacity of the underlying allocator.
 //  - DelegateClearToUnderlyingAllocator - delegate Clear call,
 //    this option changes behaviour of Clear method, so it calls Clear on underlying allocator,
 //    for additional details please refer to Clear method documentation.
 type Options struct {
-	InitialCapacity                    uint
-	AllocationLimitInBytes             uint
+	AllocationLimitInBytes             uint64
+	InitialCapacity                    uint32
 	DelegateClearToUnderlyingAllocator bool
 }
 
@@ -69,6 +70,9 @@ type Options struct {
 //
 // If you are OK with all arena.Options defaults, please pass the empty Options struct.
 func NewGenericAllocator(opts Options) *GenericAllocator {
+	if opts.AllocationLimitInBytes > uint64(math.MaxInt64) {
+		panic("AllocationLimitInBytes is too large")
+	}
 	result := &GenericAllocator{delegateClear: opts.DelegateClearToUnderlyingAllocator}
 	if opts.InitialCapacity > 0 {
 		result.target = NewDynamicAllocatorWithInitialCapacity(opts.InitialCapacity)
@@ -90,6 +94,9 @@ func NewGenericAllocator(opts Options) *GenericAllocator {
 //
 // Sub-allocator delegates almost all operations to its underlying allocator called target.
 func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
+	if opts.AllocationLimitInBytes > uint64(math.MaxInt64) {
+		panic("AllocationLimitInBytes is too large")
+	}
 	if target == nil {
 		target = NewGenericAllocator(opts)
 	}
