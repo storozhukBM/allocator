@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -47,17 +49,8 @@ type DownloadExecutableOptions struct {
 	SkipDecompression        bool
 
 	SkipChecksumVerification bool
+	ChecksumFileContent      string
 	FilenameToChecksum       map[string]string
-	ChecksumFileURL          string
-	/*
-		Example: https://github.com/golangci/golangci-lint/releases/download/v{version}/golangci-lint-{version}-checksums.txt
-		Supported template variables:
-			- os            - runtime.GOOS
-			- arch          - runtime.GOARCH
-			- version       - Version
-			- fileName      - FileName resolved from FileName or FileNameTemplate
-	*/
-	ChecksumFileURLTemplate string
 
 	DestinationDirectory string
 
@@ -108,6 +101,10 @@ func downloadWithOpts(opts DownloadExecutableOptions) (string, error) {
 	if downloadErr != nil {
 		return "", fmt.Errorf("can't download: %v", downloadErr)
 	}
+	checksumErr := verifyChecksumIfNecessary(opts, downloadedFilePath)
+	if checksumErr != nil {
+		return "", fmt.Errorf("checksum check error. file: %v; error: %v", downloadedFilePath, checksumErr)
+	}
 	filePath, decompressErr := decompressIfNecessary(opts, downloadedFilePath)
 	if decompressErr != nil {
 		return "", fmt.Errorf("can't decompres. file: %v; error: %v", downloadedFilePath, decompressErr)
@@ -140,6 +137,54 @@ func downloadWithOpts(opts DownloadExecutableOptions) (string, error) {
 		return "", fmt.Errorf("can't copy file from %v to %v: %v", filePath, destination, copyErr)
 	}
 	return destination, nil
+}
+
+func verifyChecksumIfNecessary(opts DownloadExecutableOptions, filePath string) error {
+	if opts.SkipChecksumVerification {
+		return nil
+	}
+
+	if opts.ChecksumFileContent != "" {
+		opts.FilenameToChecksum = make(map[string]string)
+		lines := strings.Split(opts.ChecksumFileContent, "\n")
+		for _, line := range lines {
+			if len(line) < 67 {
+				continue
+			}
+			checkSum := line[:64]
+			fileName := line[66:]
+			opts.FilenameToChecksum[fileName] = checkSum
+		}
+	}
+
+	if len(opts.FilenameToChecksum) == 0 {
+		return fmt.Errorf("opts.FilenameToChecksum is empty." +
+			" Didn't managed to get data from other sources")
+	}
+
+	file, fileErr := os.Open(filePath)
+	if fileErr != nil {
+		return fmt.Errorf("can't open file: %v; error: %v", filePath, fileErr)
+	}
+
+	hash := sha256.New()
+	_, hashCalcErr := io.Copy(hash, file)
+	if hashCalcErr != nil {
+		return fmt.Errorf("can't calculate hash for file: %v; error: %v", filePath, hashCalcErr)
+	}
+	resultCheckSum := hex.EncodeToString(hash.Sum(nil))
+
+	expectedChecksum, ok := opts.FilenameToChecksum[opts.FileName]
+	if !ok {
+		return fmt.Errorf("can't find expected checksum. file: %v", filePath)
+	}
+
+	if expectedChecksum != resultCheckSum {
+		return fmt.Errorf("checksum mismatch. expected: %v; actual: %v", expectedChecksum, resultCheckSum)
+	}
+
+	opts.InfoPrinter(fmt.Sprintf("checksum verified. file: %v; checksum: %v", opts.FileName, resultCheckSum))
+	return nil
 }
 
 func decompressIfNecessary(opts DownloadExecutableOptions, archivePath string) (string, error) {
