@@ -8,6 +8,7 @@ import (
 
 	"github.com/gen2brain/beeep"
 	. "github.com/storozhukBM/build"
+	. "github.com/storozhukBM/downloader"
 )
 
 const profileName = `profile.out`
