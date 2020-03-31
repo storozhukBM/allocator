@@ -11,20 +11,24 @@ import (
 	. "github.com/storozhukBM/downloader"
 )
 
+const golangCiLinterVersion = `1.24.0`
+
 const profileName = `profile.out`
 const coverageName = `coverage.out`
-const codeGenerationToolName = `allocgen`
-const makeExecutable = `make`
+
 const binDirName = `bin`
-const golangCiLinterVersion = `1.24.0`
+const makeExecutable = `make`
+const codeGenerationToolName = `allocgen`
+
+const arenaModule = `github.com/storozhukBM/allocator/lib/arena`
+const generatorModule = `github.com/storozhukBM/allocator/generator`
 
 var parallelism = strconv.Itoa(runtime.NumCPU() * runtime.NumCPU())
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{
-	{`itself`, b.RunCmd(Go, `build`, `-o`, makeExecutable, `./cmd/internal`)},
+	{`itself`, b.RunCmd(Go, `build`, `-o`, makeExecutable, `make`)},
 
-	{`build`, b.RunCmd(Go, `build`, `./...`)},
 	{`test`, func() { testLib(); testCodeGen() }},
 	{`testRace`, testRace},
 	{`testLib`, testLib},
@@ -38,26 +42,21 @@ var commands = []Command{
 	{`cleanAll`, func() { clean(); cleanExecutables() }},
 
 	{`pprof`, b.RunCmd(Go, `tool`, `pprof`, profileName)},
-	{`profileRawAlloc`, profileAllocationBenchmark(`BenchmarkRawAllocator`)},
-	{`profileManagedRawAlloc`, profileAllocationBenchmark(`BenchmarkManagedRawAllocator`)},
-	{`profileDynamicAlloc`, profileAllocationBenchmark(`BenchmarkDynamicAllocator`)},
-	{`profileGenericAlloc`, profileAllocationBenchmark(`BenchmarkGenericAllocatorWithSubClean`)},
+	{`profileRawAlloc`, profileAllocBench(`BenchmarkRawAllocator`)},
+	{`profileManagedRawAlloc`, profileAllocBench(`BenchmarkManagedRawAllocator`)},
+	{`profileDynamicAlloc`, profileAllocBench(`BenchmarkDynamicAllocator`)},
+	{`profileGenericAlloc`, profileAllocBench(`BenchmarkGenericAllocatorWithSubClean`)},
 
 	{`benchAlloc`, b.RunCmd(
-		Go, `test`, `-bench=.`, `-count=5`,
-		`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
+		Go, `test`, `-bench=.`, `-count=5`, arenaModule+`/allocation_bench_test`,
 	)},
 	{`benchAlignment`, b.RunCmd(
-		Go, `test`, `-bench=.`, `-benchtime=5s`, `-count=5`,
-		`github.com/storozhukBM/allocator/lib/arena/alignment_bench_test`,
+		Go, `test`, `-bench=.`, `-benchtime=5s`, `-count=5`, arenaModule+`/alignment_bench_test`,
 	)},
 
 	{`coverage`, func() {
 		clean()
-		b.Run(
-			Go, `test`, `-coverpkg=./...`, `-coverprofile=`+coverageName,
-			`./lib/arena/...`,
-		)
+		b.Run(Go, `test`, `-coverpkg=./...`, `-coverprofile=`+coverageName, arenaModule+`/arena_test/...`)
 		b.Run(Go, `tool`, `cover`, `-html=`+coverageName)
 	}},
 	{`coverageCodeGen`, func() {
@@ -65,21 +64,21 @@ var commands = []Command{
 		generateTestAllocator()
 		b.Run(
 			Go, `test`, `-coverpkg=./...`, `-coverprofile=`+coverageName,
-			`./generator/internal/testdata/testdata_test/...`,
+			generatorModule+`/internal/testdata/testdata_test`,
 		)
 		b.Run(Go, `tool`, `cover`, `-html=`+coverageName)
 	}},
 
 	{`buildInlineBounds`, b.ShRunCmd(
-		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, `./...`,
+		Go, `build`, `-gcflags='-m -d=ssa/check_bce/debug=1'`, arenaModule+`/...`,
 	)},
 }
 
-func profileAllocationBenchmark(benchmarkName string) func() {
+func profileAllocBench(benchmarkName string) func() {
 	return func() {
 		b.Run(
 			Go, `test`, `-run=xxx`, `-bench=`+benchmarkName, `-benchtime=15s`,
-			`github.com/storozhukBM/allocator/lib/arena/allocation_bench_test`,
+			arenaModule+`/allocation_bench_test`,
 			`-cpuprofile`, profileName,
 		)
 		b.Run(Go, `tool`, `pprof`, `-web`, profileName)
@@ -97,27 +96,27 @@ func generateTestAllocator() {
 func testLib() {
 	defer b.AddTarget("test library code")()
 	defer forceClean()
-	b.Run(Go, `test`, `-parallel`, parallelism, `./lib/...`)
+	b.Run(Go, `test`, `-parallel`, parallelism, arenaModule+`/...`)
 	generateTestAllocator()
 	defer b.AddTarget("test generated code")()
-	b.Run(Go, `test`, `-parallel`, parallelism, `./generator/internal/testdata/testdata_test/...`)
+	b.Run(Go, `test`, `-parallel`, parallelism, generatorModule+`/internal/testdata/testdata_test`)
 }
 
 func testCodeGen() {
 	defer b.AddTarget("test code generator itself")()
 	defer forceClean()
-	b.Run(Go, `test`, `-parallel`, parallelism, `./generator/...`)
+	b.Run(Go, `test`, `-parallel`, parallelism, `github.com/storozhukBM/allocator/generator/...`)
 }
 
 func testRace() {
 	defer b.AddTarget("test library code")()
 	defer forceClean()
-	b.Run(Go, `test`, `-race`, `./lib/...`)
+	b.Run(Go, `test`, `-race`, arenaModule+`/...`)
 	generateTestAllocator()
 	defer b.AddTarget("test generated code")()
-	b.Run(Go, `test`, `-race`, `./generator/internal/testdata/testdata_test/...`)
+	b.Run(Go, `test`, `-race`, generatorModule+`/internal/testdata/testdata_test`)
 	defer forceClean()
-	b.Run(Go, `test`, `-race`, `./generator/...`)
+	b.Run(Go, `test`, `-race`, generatorModule+`/...`)
 }
 
 func clean() {
@@ -126,7 +125,6 @@ func clean() {
 
 func forceClean() {
 	defer b.AddTarget("clean")()
-	b.Run(Go, `clean`, `./...`)
 	b.Run(`rm`, `-f`, profileName)
 	b.Run(`rm`, `-f`, `allocation_bench_test.test`)
 	b.Run(`rm`, `-f`, coverageName)
