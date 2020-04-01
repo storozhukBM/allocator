@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gen2brain/beeep"
@@ -151,8 +152,9 @@ func runLinters() {
 	if runtime.GOOS == "windows" {
 		// some linters do not support windows, so we use only default set
 		runLint := func(targetDir string) {
-			b.Run(
-				`cd`, targetDir, `&&`, ciLinterExec, `-j`, parallelism, `run`, `--no-config`,
+			patchedExec := strings.ReplaceAll(ciLinterExec, `\`, `/`)
+			b.ShRun(
+				`cd`, targetDir, `&&`, patchedExec, `-j`, parallelism, `run`, `--no-config`,
 				`--skip-dirs=cmd`, `--skip-dirs=alignment_bench_test`, `--skip-dirs=allocation_bench_test`,
 			)
 		}
