@@ -150,14 +150,21 @@ func runLinters() {
 	}
 	if runtime.GOOS == "windows" {
 		// some linters do not support windows, so we use only default set
-		b.Run(
-			ciLinterExec, `-j`, parallelism, `run`, `--no-config`,
-			`--skip-dirs=cmd`, `--skip-dirs=alignment_bench_test`, `--skip-dirs=allocation_bench_test`,
-		)
+		runLint := func(targetDir string) {
+			b.ShRun(
+				`cd`, targetDir, `&&`, ciLinterExec, `-j`, parallelism, `run`, `--no-config`,
+				`--skip-dirs=cmd`, `--skip-dirs=alignment_bench_test`, `--skip-dirs=allocation_bench_test`,
+			)
+		}
+		runLint(`./lib/arena`)
+		runLint(`./generator`)
 		return
 	}
-	b.ShRun(`cd`, `./lib/arena`, `&&`, ciLinterExec, `-j`, parallelism, `run`)
-	b.ShRun(`cd`, `./generator`, `&&`, ciLinterExec, `-j`, parallelism, `run`)
+	runLint := func(targetDir string) {
+		b.ShRun(`cd`, targetDir, `&&`, ciLinterExec, `-j`, parallelism, `run`)
+	}
+	runLint(`./lib/arena`)
+	runLint(`./generator`)
 }
 
 func downloadCILinter() (string, error) {
