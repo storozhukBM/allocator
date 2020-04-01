@@ -156,8 +156,8 @@ func runLinters() {
 		)
 		return
 	}
-	b.ShRun(`cd`, `./lib/arena`, `&&`, ciLinterExec, `-j`, parallelism, `run`, `-v`)
-	b.ShRun(`cd`, `./generator`, `&&`, ciLinterExec, `-j`, parallelism, `run`, `-v`)
+	b.ShRun(`cd`, `./lib/arena`, `&&`, ciLinterExec, `-j`, parallelism, `run`)
+	b.ShRun(`cd`, `./generator`, `&&`, ciLinterExec, `-j`, parallelism, `run`)
 }
 
 func downloadCILinter() (string, error) {
