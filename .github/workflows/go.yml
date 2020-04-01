@@ -15,5 +15,5 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Verify
-        run: go run ./cmd/internal -v verify
+        run: go run make -v verify
         shell: bash
