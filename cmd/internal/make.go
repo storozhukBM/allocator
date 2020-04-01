@@ -161,7 +161,7 @@ func runLinters() {
 		return
 	}
 	runLint := func(targetDir string) {
-		b.Run(`cd`, targetDir, `&&`, ciLinterExec, `-j`, parallelism, `run`)
+		b.ShRun(`cd`, targetDir, `&&`, ciLinterExec, `-j`, parallelism, `run`)
 	}
 	runLint(`./lib/arena`)
 	runLint(`./generator`)
