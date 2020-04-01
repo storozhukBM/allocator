@@ -5,16 +5,17 @@ Primitive arena allocator
 
 List build targets
 ```
-go run ./cmd/internal -h
+go run make -h
 ```
 
 Verify
 ```
-go run ./cmd/internal verify
+go run make verify
 ```
-Or
+
+Or you can prebuild make tool and use it like that
 ```
-go run ./cmd/internal itself
+go run make itself
 ./make verify
 ```
 

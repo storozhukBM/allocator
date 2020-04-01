@@ -128,6 +128,7 @@ func forceClean() {
 	b.Run(`rm`, `-f`, profileName)
 	b.Run(`rm`, `-f`, `allocation_bench_test.test`)
 	b.Run(`rm`, `-f`, coverageName)
+	b.Run(`rm`, `-f`, `./lib/arena/`+coverageName)
 	b.Run(`rm`, `-f`, codeGenerationToolName)
 	b.Run(`rm`, `-f`, `./example/main`)
 	// sh run used to expand wildcard
@@ -155,7 +156,8 @@ func runLinters() {
 		)
 		return
 	}
-	b.Run(ciLinterExec, `-j`, parallelism, `run`)
+	b.ShRun(`cd`, `./lib/arena`, `&&`, ciLinterExec, `-j`, parallelism, `run`, `-v`)
+	b.ShRun(`cd`, `./generator`, `&&`, ciLinterExec, `-j`, parallelism, `run`, `-v`)
 }
 
 func downloadCILinter() (string, error) {
