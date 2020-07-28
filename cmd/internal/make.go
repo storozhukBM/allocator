@@ -87,7 +87,7 @@ func profileAllocBench(benchmarkName string) func() {
 }
 
 func generateTestAllocator() {
-	defer b.AddTarget("generate test allocator")()
+	defer b.AddTarget("🏗  generate test allocator")()
 	b.Run(Go, `run`, `./generator/main.go`,
 		`-type`, `StablePointsVector`,
 		`-dir`, `./generator/internal/testdata/etalon/`,
@@ -95,26 +95,26 @@ func generateTestAllocator() {
 }
 
 func testLib() {
-	defer b.AddTarget("test library code")()
+	defer b.AddTarget("🧪 test library code")()
 	defer forceClean()
 	b.Run(Go, `test`, `-parallel`, parallelism, arenaModule+`/...`)
 	generateTestAllocator()
-	defer b.AddTarget("test generated code")()
+	defer b.AddTarget("🎯 test generated code")()
 	b.Run(Go, `test`, `-parallel`, parallelism, generatorModule+`/internal/testdata/testdata_test`)
 }
 
 func testCodeGen() {
-	defer b.AddTarget("test code generator itself")()
+	defer b.AddTarget("🔦 test code generator itself")()
 	defer forceClean()
 	b.Run(Go, `test`, `-parallel`, parallelism, `github.com/storozhukBM/allocator/generator/...`)
 }
 
 func testRace() {
-	defer b.AddTarget("test library code")()
+	defer b.AddTarget("🧪 test library code")()
 	defer forceClean()
 	b.Run(Go, `test`, `-race`, arenaModule+`/...`)
 	generateTestAllocator()
-	defer b.AddTarget("test generated code")()
+	defer b.AddTarget("🔦 test generated code")()
 	b.Run(Go, `test`, `-race`, generatorModule+`/internal/testdata/testdata_test`)
 	defer forceClean()
 	b.Run(Go, `test`, `-race`, generatorModule+`/...`)
@@ -125,7 +125,7 @@ func clean() {
 }
 
 func forceClean() {
-	defer b.AddTarget("clean")()
+	defer b.AddTarget("🧹 clean")()
 	b.Run(`rm`, `-f`, profileName)
 	b.Run(`rm`, `-f`, `allocation_bench_test.test`)
 	b.Run(`rm`, `-f`, coverageName)
@@ -137,13 +137,13 @@ func forceClean() {
 }
 
 func cleanExecutables() {
-	defer b.AddTarget("clean executables")()
+	defer b.AddTarget("🧻 clean executables")()
 	b.Run(`rm`, `-f`, makeExecutable)
 	b.Run(`rm`, `-rf`, binDirName)
 }
 
 func runLinters() {
-	defer b.AddTarget("run linters")()
+	defer b.AddTarget("🕵️  run linters")()
 	ciLinterExec, downloadErr := downloadCILinter()
 	if downloadErr != nil {
 		b.AddError(downloadErr)
@@ -190,11 +190,11 @@ func main() {
 	buildStart := time.Now()
 	buildErr := b.BuildFromOsArgs()
 	if buildErr != nil {
-		_ = beeep.Notify("Failure", "Allocator build failure: "+buildErr.Error(), "")
+		_ = beeep.Notify("Failure ❌", "Allocator build failure: "+buildErr.Error(), "")
 		os.Exit(-1)
 	}
 	if time.Since(buildStart).Seconds() > 5 {
-		_ = beeep.Notify("Success", "Allocator build success", "")
+		_ = beeep.Notify("Success ✅", "Allocator build success", "")
 	}
 }
 

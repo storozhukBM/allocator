@@ -74,7 +74,7 @@ func NewDynamicAllocatorWithInitialCapacity(size uint32) *DynamicAllocator {
 func (a *DynamicAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 	a.init()
 	targetSize := uint32(size)
-	if targetSize > uint32(len(a.currentArena.buffer))-a.currentArena.offset {
+	if a.currentArena.offset+size > a.currentArena.endPtr {
 		a.grow(int(targetSize))
 	}
 	result, allocErr := a.currentArena.AllocUnaligned(size)
@@ -107,19 +107,17 @@ func (a *DynamicAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 // and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
-	targetSize := uint32(size)
-	targetAlignment := uint32(alignment)
 
-	if !isPowerOfTwo(targetAlignment) {
+	if !isPowerOfTwo(alignment) {
 		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
 	}
 
-	padding := calculatePadding(a.currentArena.offset, targetAlignment)
-	resultSize := targetSize + padding
-	if resultSize > uint32(len(a.currentArena.buffer))-a.currentArena.offset {
+	padding := calculatePadding(a.currentArena.offset, alignment)
+	resultSize := size + padding
+	if a.currentArena.offset+resultSize > a.currentArena.endPtr {
 		a.grow(int(resultSize))
 	}
-	result, allocErr := a.currentArena.Alloc(size, uintptr(targetAlignment))
+	result, allocErr := a.currentArena.Alloc(size, alignment)
 	if allocErr != nil {
 		return Ptr{}, allocErr
 	}
@@ -147,8 +145,15 @@ func (a *DynamicAllocator) ToRef(p Ptr) unsafe.Pointer {
 	if p.bucketIdx != uint8(a.currentArenaIdx) {
 		targetArena = a.arenas[p.bucketIdx]
 	}
-	if targetArena.buffer == nil && p.offset == 0 {
+	if targetArena.startPtr == nil && p.offset == 0 {
 		return unsafe.Pointer(&a.zeroPointerTarget[0])
+	}
+	if p.offset < uintptr(targetArena.startPtr) || p.offset > targetArena.endPtr {
+		panic(fmt.Sprintf(
+			"raw arena index out of range. "+
+				"requested ptr: %#x; arena: [%#x: %#x]",
+			p.offset, uintptr(targetArena.startPtr), targetArena.endPtr,
+		))
 	}
 	return targetArena.ToRef(p)
 }
@@ -172,14 +177,14 @@ func (a *DynamicAllocator) CurrentOffset() Offset {
 // To avoid such situations, we'd suggest calling this method right before using the result pointer to eliminate its
 // visibility scope and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) Clear() {
-	if len(a.currentArena.buffer) > 0 {
+	if a.currentArena.startPtr != nil {
 		a.currentArena.Clear()
 		a.freeListOfClearArenas.Push(a.currentArena)
 	}
 	a.currentArena = RawAllocator{}
 
 	for _, ar := range a.arenas {
-		if len(ar.buffer) > 0 {
+		if ar.startPtr != nil {
 			ar.Clear()
 			a.freeListOfClearArenas.Push(ar)
 		}
@@ -211,7 +216,7 @@ func (a *DynamicAllocator) Metrics() Metrics {
 			CountOfOnHeapAllocations: a.onHeapAllocations,
 		},
 		// we inline AvailableBytes calculation by hand to avoid full call to a.currentArena.Metrics
-		AvailableBytes: len(a.currentArena.buffer) - int(a.currentArena.offset),
+		AvailableBytes: a.currentArena.availableBytes(),
 		MaxCapacity:    a.maxCapacity,
 	}
 }
@@ -223,9 +228,9 @@ func (a *DynamicAllocator) String() string {
 }
 
 func (a *DynamicAllocator) grow(requiredAvailableSize int) {
-	newSize := max(len(a.currentArena.buffer)*2, requiredAvailableSize*2)
+	newSize := max(a.currentArena.len()*2, requiredAvailableSize*2)
 	newArena := a.getNewArena(newSize)
-	if a.currentArena.buffer != nil {
+	if a.currentArena.startPtr != nil {
 		a.arenas = append(a.arenas, a.currentArena)
 		a.currentArenaIdx++
 	}
@@ -235,7 +240,7 @@ func (a *DynamicAllocator) grow(requiredAvailableSize int) {
 func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 	if len(a.freeListOfClearArenas.heap) == 0 {
 		newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
-		a.updateAllocationMetrics(len(newRawArena.buffer))
+		a.updateAllocationMetrics(newRawArena.len())
 		return *newRawArena
 	}
 
@@ -244,7 +249,7 @@ func (a *DynamicAllocator) getNewArena(size int) RawAllocator {
 		return newArenaFromFreeList
 	}
 	newRawArena := NewRawAllocatorWithOptimalSize(uint32(size))
-	a.updateAllocationMetrics(len(newRawArena.buffer))
+	a.updateAllocationMetrics(newRawArena.len())
 	return *newRawArena
 }
 
@@ -260,7 +265,7 @@ func (a *DynamicAllocator) tryToPickClearArenaFromFreeList(size int) (RawAllocat
 		if !ok {
 			return RawAllocator{}, false
 		}
-		if len(candidate.buffer) < size {
+		if candidate.len() < size {
 			continue
 		}
 		return candidate, true
@@ -282,7 +287,7 @@ func (h *minHeapOfClearArenas) Push(arena RawAllocator) {
 	currentIdx := len(h.heap) - 1
 	for {
 		parentIdx := (currentIdx - 1) / 2
-		if parentIdx == currentIdx || len(h.heap[currentIdx].buffer) >= len(h.heap[parentIdx].buffer) {
+		if parentIdx == currentIdx || h.heap[currentIdx].len() >= h.heap[parentIdx].len() {
 			break
 		}
 		h.heap[currentIdx], h.heap[parentIdx] = h.heap[parentIdx], h.heap[currentIdx]
@@ -305,10 +310,10 @@ func (h *minHeapOfClearArenas) Pop() (RawAllocator, bool) {
 			break
 		}
 		rightIdx := leftIdx + 1
-		if rightIdx < len(h.heap) && rightIdx > 0 && len(h.heap[rightIdx].buffer) < len(h.heap[leftIdx].buffer) {
+		if rightIdx < len(h.heap) && rightIdx > 0 && h.heap[rightIdx].len() < h.heap[leftIdx].len() {
 			smallestBetweenChildrenIdx = rightIdx
 		}
-		if len(h.heap[smallestBetweenChildrenIdx].buffer) >= len(h.heap[currentIdx].buffer) {
+		if h.heap[smallestBetweenChildrenIdx].len() >= h.heap[currentIdx].len() {
 			break
 		}
 		h.heap[currentIdx], h.heap[smallestBetweenChildrenIdx] = h.heap[smallestBetweenChildrenIdx], h.heap[currentIdx]

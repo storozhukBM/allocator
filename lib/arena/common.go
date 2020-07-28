@@ -31,7 +31,7 @@ const AllocationInvalidArgumentError = Error("allocation argument is invalid")
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 type Ptr struct {
-	offset    uint32
+	offset    uintptr
 	bucketIdx uint8
 
 	arenaMask uint16
@@ -88,11 +88,11 @@ func (p Metrics) String() string {
 	)
 }
 
-func isPowerOfTwo(x uint32) bool {
+func isPowerOfTwo(x uintptr) bool {
 	return x != 0 && (x&(x-1)) == 0
 }
 
-func calculatePadding(offset uint32, targetAlignment uint32) uint32 {
+func calculatePadding(offset uintptr, targetAlignment uintptr) uintptr {
 	mask := targetAlignment - 1
 	return (targetAlignment - (offset & mask)) & mask
 }

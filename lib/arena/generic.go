@@ -179,12 +179,11 @@ func (a *GenericAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
 	a.init()
 	targetSize := int(size)
-	targetAlignment := uint32(alignment)
 
-	if !isPowerOfTwo(targetAlignment) {
+	if !isPowerOfTwo(alignment) {
 		panic(fmt.Errorf("alignment should be power of 2. actual value: %d", alignment))
 	}
-	targetPadding := calculatePadding(a.target.CurrentOffset().p.offset, targetAlignment)
+	targetPadding := calculatePadding(a.target.CurrentOffset().p.offset, alignment)
 
 	if a.allocationLimitInBytes > 0 && a.usedBytes+targetSize+int(targetPadding) > a.allocationLimitInBytes {
 		return Ptr{}, AllocationLimitError

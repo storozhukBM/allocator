@@ -58,7 +58,7 @@ func (b Bytes) SubSlice(low int, high int) Bytes {
 	}
 	return Bytes{
 		data: Ptr{
-			offset:    b.data.offset + uint32(low),
+			offset:    b.data.offset + uintptr(low),
 			bucketIdx: b.data.bucketIdx,
 			arenaMask: b.data.arenaMask,
 		},
@@ -239,7 +239,7 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 	}
 	// current allocation offset is the same as previous
 	// we can try to just enhance current buffer
-	nextAllocationIsRightAfterTargetSlice := nextPtr.offset == target.data.offset+uint32(target.cap)
+	nextAllocationIsRightAfterTargetSlice := nextPtr.offset == target.data.offset+target.cap
 	if nextAllocationIsRightAfterTargetSlice && s.alloc.Metrics().AvailableBytes >= requiredSize {
 		_, enhancingErr := s.alloc.AllocUnaligned(uintptr(requiredSize))
 		if enhancingErr != nil {
