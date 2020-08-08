@@ -144,8 +144,9 @@ func (a *RawAllocator) Clear() {
 	}
 	bytesToClear := *(*[]byte)(unsafe.Pointer(&sliceHdr))
 	if len(bytesToClear) > 0 {
-		padding := calculatePadding(a.offset, minInternalBufferSize)
-		idx := min(int(a.offset+padding), len(bytesToClear))
+		sliceOffset := a.idx()
+		padding := calculatePadding(sliceOffset, minInternalBufferSize)
+		idx := min(int(sliceOffset+padding), len(bytesToClear))
 		bytesToClear = bytesToClear[:idx]
 	}
 	clearBytes(bytesToClear)
@@ -179,6 +180,10 @@ func (a *RawAllocator) String() string {
 
 func (a *RawAllocator) availableBytes() int {
 	return int(a.endPtr - a.offset)
+}
+
+func (a *RawAllocator) idx() uintptr {
+	return a.offset - uintptr(a.startPtr)
 }
 
 func (a *RawAllocator) len() int {

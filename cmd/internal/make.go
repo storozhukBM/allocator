@@ -46,6 +46,7 @@ var commands = []Command{
 	{`profileRawAlloc`, profileAllocBench(`BenchmarkRawAllocator`)},
 	{`profileManagedRawAlloc`, profileAllocBench(`BenchmarkManagedRawAllocator`)},
 	{`profileDynamicAlloc`, profileAllocBench(`BenchmarkDynamicAllocator`)},
+	{`profileManagedDynWithPreAlloc`, profileAllocBench(`BenchmarkManagedDynamicAllocatorWithPreAlloc`)},
 	{`profileGenericAlloc`, profileAllocBench(`BenchmarkGenericAllocatorWithSubClean`)},
 
 	{`benchAlloc`, b.RunCmd(
