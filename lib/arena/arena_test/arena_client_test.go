@@ -690,7 +690,7 @@ func TestWrongOffsetToRef(t *testing.T) {
 		ptr, allocErr := bigAlloc.Alloc(1, 1)
 		failOnError(t, allocErr)
 		testPtrWrapper := (*testPtr)(unsafe.Pointer(&ptr))
-		testPtrWrapper.offset -= 1
+		testPtrWrapper.offset--
 
 		_ = bigAlloc.ToRef(ptr)
 		assert(false, "this point should be unreachable due to panic")
@@ -700,8 +700,7 @@ func TestWrongOffsetToRef(t *testing.T) {
 }
 
 type testPtr struct {
-	offset    uintptr
-	bucketIdx uint8
-
-	arenaMask uint16
+	offset uintptr
+	_      uint8
+	_      uint16
 }

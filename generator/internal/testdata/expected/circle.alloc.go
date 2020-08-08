@@ -75,13 +75,13 @@ func (s CircleBuffer) SubSlice(low int, high int) CircleBuffer {
 	var tVar Circle
 	tSize := unsafe.Sizeof(tVar)
 	type internalPtr struct {
-		offset    uint32
+		offset    uintptr
 		bucketIdx uint8
 		arenaMask uint16
 	}
 	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
 	newPtr := internalPtr{
-		offset:    currentPtr.offset + uint32(low*int(tSize)),
+		offset:    currentPtr.offset + uintptr(low*int(tSize)),
 		bucketIdx: currentPtr.bucketIdx,
 		arenaMask: currentPtr.arenaMask,
 	}
@@ -105,13 +105,13 @@ func (s CircleBuffer) Get(idx int) CirclePtr {
 	var tVar Circle
 	tSize := unsafe.Sizeof(tVar)
 	type internalPtr struct {
-		offset    uint32
+		offset    uintptr
 		bucketIdx uint8
 		arenaMask uint16
 	}
 	currentPtr := *(*internalPtr)(unsafe.Pointer(&s.data))
 	newPtr := internalPtr{
-		offset:    currentPtr.offset + uint32(idx*int(tSize)),
+		offset:    currentPtr.offset + uintptr(idx*int(tSize)),
 		bucketIdx: currentPtr.bucketIdx,
 		arenaMask: currentPtr.arenaMask,
 	}

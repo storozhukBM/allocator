@@ -110,7 +110,7 @@ func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 
 // ToRef converts arena.Ptr to unsafe.Pointer.
 //
-// This method doesn't perform bounds check.
+// UNSAFE CAUTION This method doesn't perform bounds check. CAUTION UNSAFE
 //
 // Also, this RawAllocator.ToRef has no protection from the converting arena.Ptr
 // that were allocated by other arenas, so you should be extra careful when using it,
@@ -119,6 +119,7 @@ func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 //
 // We'd suggest calling this method right before using the result pointer to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
+//go:nocheckptr
 func (a *RawAllocator) ToRef(p Ptr) unsafe.Pointer {
 	return unsafe.Pointer(p.offset)
 }
@@ -138,8 +139,8 @@ func (a *RawAllocator) CurrentOffset() Offset {
 func (a *RawAllocator) Clear() {
 	sliceHdr := reflect.SliceHeader{
 		Data: uintptr(a.startPtr),
-		Len:  int(a.endPtr-uintptr(a.startPtr)) + 1,
-		Cap:  int(a.endPtr-uintptr(a.startPtr)) + 1,
+		Len:  a.len(),
+		Cap:  a.len(),
 	}
 	bytesToClear := *(*[]byte)(unsafe.Pointer(&sliceHdr))
 	if len(bytesToClear) > 0 {
@@ -148,7 +149,7 @@ func (a *RawAllocator) Clear() {
 		bytesToClear = bytesToClear[:idx]
 	}
 	clearBytes(bytesToClear)
-	a.offset = 0
+	a.offset = uintptr(a.startPtr)
 }
 
 // Stats provides a snapshot of essential allocation statistics,
