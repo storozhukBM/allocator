@@ -2,7 +2,6 @@ package arena
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
 )
 
@@ -137,7 +136,7 @@ func (a *RawAllocator) CurrentOffset() Offset {
 // To avoid such situation please refer to other allocator implementations from this library
 // that provide additional safety checks.
 func (a *RawAllocator) Clear() {
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := sliceHeader{
 		Data: uintptr(a.startPtr),
 		Len:  a.len(),
 		Cap:  a.len(),

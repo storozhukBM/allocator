@@ -6,7 +6,6 @@ package {{.PkgName}}
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
 
 	"github.com/storozhukBM/allocator/lib/arena"
@@ -255,11 +254,12 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) Append(slice []{{$t
 	return result, nil
 }
 
-func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) growIfNecessary(slice []{{$ttName}}, requiredLen int) (*reflect.SliceHeader, error) {
+func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) growIfNecessary(slice []{{$ttName}}, 
+requiredLen int) (*internal{{.TypeNameWithUpperFirstLetter}}SliceHeader, error) {
 	var tVar {{$ttName}}
 	tSize := unsafe.Sizeof(tVar)
 	requiredSizeInBytes := requiredLen * int(tSize)
-	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
+	sliceHdr := (*internal{{.TypeNameWithUpperFirstLetter}}SliceHeader)(unsafe.Pointer(&slice))
 	availableSizeInBytes := int(sliceHdr.Cap - sliceHdr.Len) * int(tSize)
 	if availableSizeInBytes >= requiredSizeInBytes {
 		return sliceHdr, nil
@@ -293,13 +293,13 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) growIfNecessary(sli
 	return newDstSlice, nil
 }
 
-func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) makeGoSlice(len int) (*reflect.SliceHeader, error) {
+func (s *internal{{.TypeNameWithUpperFirstLetter}}SliceView) makeGoSlice(len int) (*internal{{.TypeNameWithUpperFirstLetter}}SliceHeader, error) {
 	valueSlice, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
 		return nil, allocErr
 	}
 	sliceRef := s.state.alloc.ToRef(valueSlice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internal{{.TypeNameWithUpperFirstLetter}}SliceHeader{
 		Data: uintptr(sliceRef),
 		Len:  len,
 		Cap:  len,
@@ -377,7 +377,7 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) Append(
 // to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) ToRef(slice {{$ttName}}Buffer) []{{$ttName}} {
 	dataRef := s.state.alloc.ToRef(slice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internal{{.TypeNameWithUpperFirstLetter}}SliceHeader{
 		Data: uintptr(dataRef),
 		Len:  slice.len,
 		Cap:  slice.cap,
@@ -449,5 +449,11 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}State) makeSlice(len int) ({{$
 		cap:  len,
 	}
 	return sliceHdr, nil
+}
+
+type internal{{.TypeNameWithUpperFirstLetter}}SliceHeader struct {
+	Data uintptr
+	Len  int
+	Cap  int
 }
 `
