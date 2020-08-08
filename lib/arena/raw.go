@@ -2,10 +2,11 @@ package arena
 
 import (
 	"fmt"
+	"reflect"
 	"unsafe"
 )
 
-const minInternalBufferSize uint32 = 64 * 1024
+const minInternalBufferSize uintptr = 64 * 1024
 
 // RawAllocator is the simplest bump pointer allocator
 // that can operate on top of once allocated byte slice.
@@ -20,15 +21,20 @@ const minInternalBufferSize uint32 = 64 * 1024
 // available in this library, and refer to this one only if you really need to,
 // and you understand all its caveats and potentially unsafe behavior.
 type RawAllocator struct {
-	buffer []byte
-	offset uint32
+	startPtr unsafe.Pointer // strong reference to actual byte slice
+	endPtr   uintptr
+	offset   uintptr
 }
 
 // NewRawAllocator creates an instance of arena.RawAllocator
 // and allocates the whole it's underlying buffer from the heap in advance.
 func NewRawAllocator(size uint32) *RawAllocator {
+	bytes := make([]byte, int(size))
+	startPtr := unsafe.Pointer(&bytes[0])
 	return &RawAllocator{
-		buffer: make([]byte, int(size)),
+		startPtr: startPtr,
+		endPtr:   uintptr(unsafe.Pointer(&bytes[size-1])),
+		offset:   uintptr(startPtr),
 	}
 }
 
@@ -37,9 +43,9 @@ func NewRawAllocator(size uint32) *RawAllocator {
 // This method will figure-out size that will be >= size and will enable certain
 // underlying optimizations like vectorized Clear operation.
 func NewRawAllocatorWithOptimalSize(size uint32) *RawAllocator {
-	targetSize := uint32(max(int(size), int(minInternalBufferSize)))
+	targetSize := uintptr(max(int(size), int(minInternalBufferSize)))
 	additionalPadding := calculatePadding(targetSize, minInternalBufferSize)
-	return NewRawAllocator(targetSize + additionalPadding)
+	return NewRawAllocator(uint32(targetSize + additionalPadding))
 }
 
 // AllocUnaligned performs allocation within an underlying buffer, but without automatic alignment.
@@ -64,13 +70,12 @@ func NewRawAllocatorWithOptimalSize(size uint32) *RawAllocator {
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *RawAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
-	targetSize := uint32(size)
-	if targetSize > uint32(len(a.buffer))-a.offset {
+	if a.offset+size > a.endPtr {
 		return Ptr{}, AllocationLimitError
 	}
-	allocationOffset := a.offset
-	a.offset += targetSize
-	return Ptr{offset: allocationOffset}, nil
+	result := Ptr{offset: a.offset}
+	a.offset += size
+	return result, nil
 }
 
 // Alloc performs allocation within an underlying buffer.
@@ -93,24 +98,19 @@ func (a *RawAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
-	targetSize := uint32(size)
-	targetAlignment := uint32(alignment)
-	paddingSize := calculatePadding(a.offset, targetAlignment)
-
-	if targetSize+paddingSize > uint32(len(a.buffer))-a.offset {
+	paddingSize := calculatePadding(a.offset, alignment)
+	if a.offset+size+paddingSize > a.endPtr {
 		return Ptr{}, AllocationLimitError
 	}
 	a.offset += paddingSize
-
-	allocationOffset := a.offset
-	a.offset += targetSize
-	return Ptr{offset: allocationOffset}, nil
+	result := Ptr{offset: a.offset}
+	a.offset += size
+	return result, nil
 }
 
 // ToRef converts arena.Ptr to unsafe.Pointer.
 //
-// This method performs bounds check, so it can panic if you pass an arena.Ptr
-// allocated by different arena with internal offset bigger than the underlying buffer.
+// UNSAFE CAUTION This method doesn't perform bounds check. CAUTION UNSAFE
 //
 // Also, this RawAllocator.ToRef has no protection from the converting arena.Ptr
 // that were allocated by other arenas, so you should be extra careful when using it,
@@ -119,9 +119,9 @@ func (a *RawAllocator) Alloc(size uintptr, alignment uintptr) (Ptr, error) {
 //
 // We'd suggest calling this method right before using the result pointer to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
+//go:nocheckptr
 func (a *RawAllocator) ToRef(p Ptr) unsafe.Pointer {
-	targetOffset := int(p.offset)
-	return unsafe.Pointer(&a.buffer[targetOffset])
+	return unsafe.Pointer(p.offset)
 }
 
 // CurrentOffset returns the current allocation offset.
@@ -137,22 +137,28 @@ func (a *RawAllocator) CurrentOffset() Offset {
 // To avoid such situation please refer to other allocator implementations from this library
 // that provide additional safety checks.
 func (a *RawAllocator) Clear() {
-	bytesToClear := a.buffer
+	sliceHdr := reflect.SliceHeader{
+		Data: uintptr(a.startPtr),
+		Len:  a.len(),
+		Cap:  a.len(),
+	}
+	bytesToClear := *(*[]byte)(unsafe.Pointer(&sliceHdr))
 	if len(bytesToClear) > 0 {
-		padding := calculatePadding(a.offset, minInternalBufferSize)
-		idx := min(int(a.offset+padding), len(bytesToClear))
+		sliceOffset := a.idx()
+		padding := calculatePadding(sliceOffset, minInternalBufferSize)
+		idx := min(int(sliceOffset+padding), len(bytesToClear))
 		bytesToClear = bytesToClear[:idx]
 	}
 	clearBytes(bytesToClear)
-	a.offset = 0
+	a.offset = uintptr(a.startPtr)
 }
 
 // Stats provides a snapshot of essential allocation statistics,
 // that can be used by end-users or other allocators for introspection.
 func (a *RawAllocator) Stats() Stats {
 	return Stats{
-		UsedBytes:                int(a.offset),
-		AllocatedBytes:           len(a.buffer),
+		UsedBytes:                int(a.offset - uintptr(a.startPtr)),
+		AllocatedBytes:           int(a.endPtr-uintptr(a.startPtr)) + 1,
 		CountOfOnHeapAllocations: 0,
 	}
 }
@@ -162,12 +168,24 @@ func (a *RawAllocator) Stats() Stats {
 func (a *RawAllocator) Metrics() Metrics {
 	return Metrics{
 		Stats:          a.Stats(),
-		AvailableBytes: len(a.buffer) - int(a.offset),
-		MaxCapacity:    len(a.buffer),
+		AvailableBytes: int(a.endPtr - a.offset),
+		MaxCapacity:    int(a.endPtr-uintptr(a.startPtr)) + 1,
 	}
 }
 
 // String provides a string snapshot of the current allocation offset.
 func (a *RawAllocator) String() string {
 	return fmt.Sprintf("rowarena{%v}", a.CurrentOffset())
+}
+
+func (a *RawAllocator) availableBytes() int {
+	return int(a.endPtr - a.offset)
+}
+
+func (a *RawAllocator) idx() uintptr {
+	return a.offset - uintptr(a.startPtr)
+}
+
+func (a *RawAllocator) len() int {
+	return int(a.endPtr-uintptr(a.startPtr)) + 1
 }

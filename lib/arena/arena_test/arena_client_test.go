@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/storozhukBM/allocator/lib/arena"
 )
@@ -678,24 +679,28 @@ func TestWrongOffsetToRef(t *testing.T) {
 		defer func() {
 			p := recover()
 			assert(p != nil, "p can't be nil")
+			result := fmt.Sprintf("%v", p)
 			assert(
-				strings.Contains(fmt.Sprintf("%v", p), "index out of range"),
+				strings.Contains(result, "index out of range"),
 				"index check should fail the execution",
 			)
 			recoveryHappened = true
 		}()
-		bigAlloc := arena.NewRawAllocator(64)
-		smallAlloc := arena.NewRawAllocator(32)
-
-		_, allocErr := bigAlloc.Alloc(33, 1)
+		bigAlloc := arena.NewDynamicAllocatorWithInitialCapacity(64)
+		ptr, allocErr := bigAlloc.Alloc(1, 1)
 		failOnError(t, allocErr)
+		testPtrWrapper := (*testPtr)(unsafe.Pointer(&ptr))
+		testPtrWrapper.offset--
 
-		ptrFromBig, allocErr := bigAlloc.Alloc(1, 1)
-		failOnError(t, allocErr)
-
-		_ = smallAlloc.ToRef(ptrFromBig)
+		_ = bigAlloc.ToRef(ptr)
 		assert(false, "this point should be unreachable due to panic")
 	}()
 
 	assert(recoveryHappened, "recovery should happen")
+}
+
+type testPtr struct {
+	offset uintptr
+	_      uint8
+	_      uint16
 }

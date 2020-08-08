@@ -20,6 +20,7 @@ go run make itself
 ```
 
 Roadmap
+1. get rid of reflect in library code by replacing reflect.SliceHeader with private type
 1. arena map on top of linear hashing alg
 1. instrumented arena
 1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)
