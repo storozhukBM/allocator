@@ -2,7 +2,6 @@ package arena
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
 )
 
@@ -262,9 +261,9 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 	return target, nil
 }
 
-func (s *BytesView) bytesToSliceHeader(bytes Bytes) reflect.SliceHeader {
+func (s *BytesView) bytesToSliceHeader(bytes Bytes) sliceHeader {
 	sliceBufferRef := s.alloc.ToRef(bytes.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := sliceHeader{
 		Data: uintptr(sliceBufferRef),
 		Len:  int(bytes.len),
 		Cap:  int(bytes.cap),

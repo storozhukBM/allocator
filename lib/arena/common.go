@@ -88,6 +88,12 @@ func (p Metrics) String() string {
 	)
 }
 
+type sliceHeader struct {
+	Data uintptr
+	Len  int
+	Cap  int
+}
+
 func isPowerOfTwo(x uintptr) bool {
 	return x != 0 && (x&(x-1)) == 0
 }

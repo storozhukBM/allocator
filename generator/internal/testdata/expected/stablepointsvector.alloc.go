@@ -2,7 +2,6 @@ package etalon
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
 
 	"github.com/storozhukBM/allocator/lib/arena"
@@ -246,11 +245,12 @@ func (s *internalStablePointsVectorSliceView) Append(slice []StablePointsVector,
 	return result, nil
 }
 
-func (s *internalStablePointsVectorSliceView) growIfNecessary(slice []StablePointsVector, requiredLen int) (*reflect.SliceHeader, error) {
+func (s *internalStablePointsVectorSliceView) growIfNecessary(slice []StablePointsVector,
+	requiredLen int) (*internalStablePointsVectorSliceHeader, error) {
 	var tVar StablePointsVector
 	tSize := unsafe.Sizeof(tVar)
 	requiredSizeInBytes := requiredLen * int(tSize)
-	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
+	sliceHdr := (*internalStablePointsVectorSliceHeader)(unsafe.Pointer(&slice))
 	availableSizeInBytes := int(sliceHdr.Cap-sliceHdr.Len) * int(tSize)
 	if availableSizeInBytes >= requiredSizeInBytes {
 		return sliceHdr, nil
@@ -284,13 +284,13 @@ func (s *internalStablePointsVectorSliceView) growIfNecessary(slice []StablePoin
 	return newDstSlice, nil
 }
 
-func (s *internalStablePointsVectorSliceView) makeGoSlice(len int) (*reflect.SliceHeader, error) {
+func (s *internalStablePointsVectorSliceView) makeGoSlice(len int) (*internalStablePointsVectorSliceHeader, error) {
 	valueSlice, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
 		return nil, allocErr
 	}
 	sliceRef := s.state.alloc.ToRef(valueSlice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internalStablePointsVectorSliceHeader{
 		Data: uintptr(sliceRef),
 		Len:  len,
 		Cap:  len,
@@ -368,7 +368,7 @@ func (s *internalStablePointsVectorBufferView) Append(
 // to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalStablePointsVectorBufferView) ToRef(slice StablePointsVectorBuffer) []StablePointsVector {
 	dataRef := s.state.alloc.ToRef(slice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internalStablePointsVectorSliceHeader{
 		Data: uintptr(dataRef),
 		Len:  slice.len,
 		Cap:  slice.cap,
@@ -440,4 +440,10 @@ func (s *internalStablePointsVectorState) makeSlice(len int) (StablePointsVector
 		cap:  len,
 	}
 	return sliceHdr, nil
+}
+
+type internalStablePointsVectorSliceHeader struct {
+	Data uintptr
+	Len  int
+	Cap  int
 }

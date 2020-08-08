@@ -2,7 +2,6 @@ package etalon
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
 
 	"github.com/storozhukBM/allocator/lib/arena"
@@ -246,11 +245,12 @@ func (s *internalCircleColorSliceView) Append(slice []CircleColor, elemsToAppend
 	return result, nil
 }
 
-func (s *internalCircleColorSliceView) growIfNecessary(slice []CircleColor, requiredLen int) (*reflect.SliceHeader, error) {
+func (s *internalCircleColorSliceView) growIfNecessary(slice []CircleColor,
+	requiredLen int) (*internalCircleColorSliceHeader, error) {
 	var tVar CircleColor
 	tSize := unsafe.Sizeof(tVar)
 	requiredSizeInBytes := requiredLen * int(tSize)
-	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
+	sliceHdr := (*internalCircleColorSliceHeader)(unsafe.Pointer(&slice))
 	availableSizeInBytes := int(sliceHdr.Cap-sliceHdr.Len) * int(tSize)
 	if availableSizeInBytes >= requiredSizeInBytes {
 		return sliceHdr, nil
@@ -284,13 +284,13 @@ func (s *internalCircleColorSliceView) growIfNecessary(slice []CircleColor, requ
 	return newDstSlice, nil
 }
 
-func (s *internalCircleColorSliceView) makeGoSlice(len int) (*reflect.SliceHeader, error) {
+func (s *internalCircleColorSliceView) makeGoSlice(len int) (*internalCircleColorSliceHeader, error) {
 	valueSlice, allocErr := s.state.makeSlice(len)
 	if allocErr != nil {
 		return nil, allocErr
 	}
 	sliceRef := s.state.alloc.ToRef(valueSlice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internalCircleColorSliceHeader{
 		Data: uintptr(sliceRef),
 		Len:  len,
 		Cap:  len,
@@ -368,7 +368,7 @@ func (s *internalCircleColorBufferView) Append(
 // to eliminate its visibility scope and potentially prevent it's escaping to the heap.
 func (s *internalCircleColorBufferView) ToRef(slice CircleColorBuffer) []CircleColor {
 	dataRef := s.state.alloc.ToRef(slice.data)
-	sliceHdr := reflect.SliceHeader{
+	sliceHdr := internalCircleColorSliceHeader{
 		Data: uintptr(dataRef),
 		Len:  slice.len,
 		Cap:  slice.cap,
@@ -440,4 +440,10 @@ func (s *internalCircleColorState) makeSlice(len int) (CircleColorBuffer, error)
 		cap:  len,
 	}
 	return sliceHdr, nil
+}
+
+type internalCircleColorSliceHeader struct {
+	Data uintptr
+	Len  int
+	Cap  int
 }

@@ -20,7 +20,6 @@ go run make itself
 ```
 
 Roadmap
-1. get rid of reflect in library code by replacing reflect.SliceHeader with private type
 1. arena map on top of linear hashing alg
 1. instrumented arena
 1. create additional methods for allocation within limits that can accept to sizes (minSize, preferableSize)
@@ -57,3 +56,4 @@ Done:
 1. Make arena.Buffer.WriteString throw panic on allocation error to bo compatible with bytes.Buffer
 1. Documentation for the generated code
 1. Add sub-slicing to the generated code and arena.Bytes
+1. Get rid of reflect in library code by replacing reflect.SliceHeader with private type
