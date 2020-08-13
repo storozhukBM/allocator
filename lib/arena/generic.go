@@ -20,12 +20,12 @@ type allocator interface {
 // GenericAllocator is the wrapper on top of any other allocator that provides
 // additional functionality, enhanced metrics, and safety features.
 // It can be configured using arena.Options struct.
-// By default, it creates arena.DynamicAllocator underneath, but you can path any other,
+// By default, it creates arena.DynamicAllocator underneath, but you can pass any other,
 // already created allocator using arena.NewSubAllocator method.
 //
 // Preventable unsafe behaviors are:
 //  - ToRef call with arena.Ptr that wasn't allocated by this arena.
-//  - ToRef call with arena.Ptr that was allocated before arena.DynamicAllocator.Clear call.
+//  - ToRef call with arena.Ptr that was allocated before arena.GenericAllocator.Clear call.
 //  - Alloc call with unsupported alignment value.
 //
 // GenericAllocator also has limits functionality so that you can specify upper allocation limits.
@@ -56,7 +56,8 @@ type GenericAllocator struct {
 //  - InitialCapacity - initial capacity of the underlying allocator,
 //    if not specified we will use the default capacity of the underlying allocator.
 //  - DelegateClearToUnderlyingAllocator - delegate Clear call,
-//    this option changes behaviour of Clear method, so it calls Clear on underlying allocator,
+//    this option changes behaviour of Clear method,
+//    so it calls Clear on underlying allocator,
 //    for additional details please refer to Clear method documentation.
 type Options struct {
 	AllocationLimitInBytes             uint64
@@ -131,7 +132,7 @@ func NewSubAllocator(target allocator, opts Options) *GenericAllocator {
 // is not considered by Go runtime as a legit pointer type.
 // So the GC can skip it during the concurrent mark phase.
 //
-// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// arena.Ptr can be converted to unsafe.Pointer by using arena allocator ToRef method,
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
@@ -173,7 +174,7 @@ func (a *GenericAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 // is not considered by Go runtime as a legit pointer type.
 // So the GC can skip it during the concurrent mark phase.
 //
-// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// arena.Ptr can be converted to unsafe.Pointer by using arena allocator ToRef method,
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *GenericAllocator) Alloc(size, alignment uintptr) (Ptr, error) {

@@ -68,7 +68,7 @@ func NewDynamicAllocatorWithInitialCapacity(size uint32) *DynamicAllocator {
 // is not considered by Go runtime as a legit pointer type.
 // So the GC can skip it during the concurrent mark phase.
 //
-// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// arena.Ptr can be converted to unsafe.Pointer by using arena allocator ToRef method,
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
@@ -102,7 +102,7 @@ func (a *DynamicAllocator) AllocUnaligned(size uintptr) (Ptr, error) {
 // is not considered by Go runtime as a legit pointer type.
 // So the GC can skip it during the concurrent mark phase.
 //
-// arena.Ptr can be converted to unsafe.Pointer by using arena.RawAllocator.ToRef method,
+// arena.Ptr can be converted to unsafe.Pointer by using arena allocator ToRef method,
 // but we'd suggest to do it right before use to eliminate its visibility scope
 // and potentially prevent it's escaping to the heap.
 func (a *DynamicAllocator) Alloc(size, alignment uintptr) (Ptr, error) {
