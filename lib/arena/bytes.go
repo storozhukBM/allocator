@@ -48,11 +48,11 @@ func (b Bytes) Cap() int {
 // SubSlice is an analog to []byte[low:high]
 // Returns sub-slice of the arena.Bytes and panics in case of bounds out of range.
 func (b Bytes) SubSlice(low int, high int) Bytes {
-	inBounds := low >= 0 && low <= high && high <= int(b.len)
+	inBounds := low >= 0 && low <= high && high <= int(b.cap)
 	if !inBounds {
 		panic(fmt.Errorf(
-			"runtime error: slice bounds out of range [%d:%d] with length %d",
-			low, high, b.len,
+			"runtime error: slice bounds out of range [%d:%d] with capacity %d",
+			low, high, b.cap,
 		))
 	}
 	return Bytes{

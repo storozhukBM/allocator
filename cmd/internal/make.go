@@ -24,7 +24,7 @@ const codeGenerationToolName = `allocgen`
 const arenaModule = `github.com/storozhukBM/allocator/lib/arena`
 const generatorModule = `github.com/storozhukBM/allocator/generator`
 
-var parallelism = strconv.Itoa(runtime.NumCPU() * runtime.NumCPU())
+var parallelism = strconv.Itoa(2 * runtime.NumCPU())
 
 var b = NewBuild(BuildOptions{})
 var commands = []Command{

@@ -64,11 +64,11 @@ func (s PointBuffer) Cap() int {
 // SubSlice is an analog to []Point[low:high]
 // Returns sub-slice of the PointBuffer and panics in case of bounds out of range.
 func (s PointBuffer) SubSlice(low int, high int) PointBuffer {
-	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	inBounds := low >= 0 && low <= high && high <= s.cap
 	if !inBounds {
 		panic(fmt.Errorf(
-			"runtime error: slice bounds out of range [%d:%d] with length %d",
-			low, high, s.len,
+			"runtime error: slice bounds out of range [%d:%d] with capacity %d",
+			low, high, s.cap,
 		))
 	}
 	var tVar Point

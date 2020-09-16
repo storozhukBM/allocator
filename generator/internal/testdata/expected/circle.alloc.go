@@ -64,11 +64,11 @@ func (s CircleBuffer) Cap() int {
 // SubSlice is an analog to []Circle[low:high]
 // Returns sub-slice of the CircleBuffer and panics in case of bounds out of range.
 func (s CircleBuffer) SubSlice(low int, high int) CircleBuffer {
-	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	inBounds := low >= 0 && low <= high && high <= s.cap
 	if !inBounds {
 		panic(fmt.Errorf(
-			"runtime error: slice bounds out of range [%d:%d] with length %d",
-			low, high, s.len,
+			"runtime error: slice bounds out of range [%d:%d] with capacity %d",
+			low, high, s.cap,
 		))
 	}
 	var tVar Circle

@@ -64,11 +64,11 @@ func (s coordinateBuffer) Cap() int {
 // SubSlice is an analog to []coordinate[low:high]
 // Returns sub-slice of the coordinateBuffer and panics in case of bounds out of range.
 func (s coordinateBuffer) SubSlice(low int, high int) coordinateBuffer {
-	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	inBounds := low >= 0 && low <= high && high <= s.cap
 	if !inBounds {
 		panic(fmt.Errorf(
-			"runtime error: slice bounds out of range [%d:%d] with length %d",
-			low, high, s.len,
+			"runtime error: slice bounds out of range [%d:%d] with capacity %d",
+			low, high, s.cap,
 		))
 	}
 	var tVar coordinate
