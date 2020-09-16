@@ -397,6 +397,16 @@ func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) growIfNecessary(
 		return slice, nil
 	}
 
+	return s.grow(slice, requiredLen)
+}
+
+func (s *internal{{.TypeNameWithUpperFirstLetter}}BufferView) grow(
+		slice {{$ttName}}Buffer,
+		requiredLen int,
+) ({{$ttName}}Buffer, error) {
+	var tVar {{$ttName}}
+	tSize := unsafe.Sizeof(tVar)
+	requiredSizeInBytes := requiredLen * int(tSize)
 	emptyPtr := arena.Ptr{}
 	if s.state.lastAllocatedPtr != emptyPtr && slice.data == s.state.lastAllocatedPtr {
 		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)
