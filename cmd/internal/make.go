@@ -12,7 +12,7 @@ import (
 	. "github.com/storozhukBM/downloader"
 )
 
-const golangCiLinterVersion = `1.30.0`
+const golangCiLinterVersion = `1.31.0`
 
 const profileName = `profile.out`
 const coverageName = `coverage.out`
@@ -200,32 +200,32 @@ func main() {
 }
 
 const golangcilintChecksumFile = `
-0701ede88347aa0ad7bd5c2bcc22d7d7b64ae7e9828abd3c4fe5a8c57c4f7b5a  golangci-lint-1.30.0-linux-s390x.rpm
-191f21f971054b6a016027c73f7643402a9b3322fe42be3cc1533605a67de21a  golangci-lint-1.30.0-linux-amd64.deb
-258e51decfe286e2f3b985ef2eece6197dc61f1e50bc1ca4986d23776a673737  golangci-lint-1.30.0-darwin-amd64.tar.gz
-2dd52d77d9dc0aff73a85938a12e53f4a3688cf19e9ca52632629771a5fd664c  golangci-lint-1.30.0-linux-386.rpm
-2f0c6c747f03bf75594bc34969d9f5e919a9becea7d5fa23599f63150a960c2c  golangci-lint-1.30.0-windows-amd64.zip
-320156934ee15977b03da44f2fed88d3f6ad3480d08adea3fe9e999cc026c248  golangci-lint-1.30.0-linux-arm64.deb
-34bf2ce67182b9f74c69ed1768c327ff140dd6029e46498c12bd88a25dd809a2  golangci-lint-1.30.0-freebsd-armv7.tar.gz
-484e0ab3644068585528f0c0d35c6fe97451eade659cb12ff5f14c1d4c5f36ba  golangci-lint-1.30.0-linux-amd64.rpm
-4db9f2ee472d02167e26dc4a4afb8880b58fc8b409c713314d89d5f24b76d8be  golangci-lint-1.30.0-windows-386.zip
-5ab313c203522b8ef0fca4a86f03c21647552eb126682f6bb6e0c2c27519806a  golangci-lint-1.30.0-linux-s390x.tar.gz
-5c91512b4120620513b3e551e996ec2d0d476d0feb503c6e932c8336949cdc74  golangci-lint-1.30.0-linux-ppc64le.rpm
-63e43bddd08485e3c652d399d11486874427fd4cdd4ef26d3b96168d63e1450c  golangci-lint-1.30.0-linux-armv7.deb
-669ef3611963b44dc5b6cbf3709b5dd56c9d1dab11562309a5cdefcf4096eed0  golangci-lint-1.30.0-linux-armv6.tar.gz
-74fbcf4110ec10b0ddcc1779cfbe11a83ce1b7b83920d8eefa195cc93e3c11f3  golangci-lint-1.30.0-linux-386.tar.gz
-9556cba775505e270b1e6c9549fe6673bf3c36f1bda3aefe2e253749f2f9cecb  golangci-lint-1.30.0-linux-386.deb
-a9c1d14d84a687fb8e67c2c613533ec3e2802b5baf95ca82ad528f788cb6d61f  golangci-lint-1.30.0-linux-arm64.tar.gz
-b0cb8001137e1a3e465204b9176e136c29399e94f4b494020471b2e8559a28b6  golangci-lint-1.30.0-linux-ppc64le.tar.gz
-b542d5cabe71649a8ae57dbb929c0d43c5b41d2aef8395aa1b028ff34ebd7676  golangci-lint-1.30.0-linux-arm64.rpm
-b60feec3da0dfce79aef36c05dada77bf2aa98f07ad64cf4027bd36ec8db4a4e  golangci-lint-1.30.0-freebsd-amd64.tar.gz
-bd9b633796537dea78d0e6003da7b5f78fe17f7903dc967c3e216411549a53f7  golangci-lint-1.30.0-linux-armv6.deb
-bf1947b191dbbca974a59f3897c999964113c3d3d6098b54e719011d7bcf3db0  golangci-lint-1.30.0-freebsd-armv6.tar.gz
-c8e8fc5753e74d2eb489ad428dbce219eb9907799a57c02bcd8b80b4b98c60d4  golangci-lint-1.30.0-linux-amd64.tar.gz
-cd6deee3c903261f6222991526128637656a4a9ae987a0d54bd4d9b8be6a2162  golangci-lint-1.30.0-linux-s390x.deb
-d15ed16baa62d89ccdf3a6189219a1f4e8820721d9a1e2e361fb92c2525f324e  golangci-lint-1.30.0-linux-armv7.tar.gz
-d87ccd0b50ffdcff03f48a02099144b3668bfee295ee08e838262aa4a801df57  golangci-lint-1.30.0-linux-armv7.rpm
-d9e2fd2d2807d121b5936d419a9027555954b48173e52c743064ebf474f30008  golangci-lint-1.30.0-linux-ppc64le.deb
-e0977ea0542e8a42fe8e91ec32911c6385d4f8f1f23c2be7bca5bece079b10eb  golangci-lint-1.30.0-freebsd-386.tar.gz
-edb2cf91cf6478d5d096fa88c7b13f236b078756bf4f9a6de63a8daf51a716b4  golangci-lint-1.30.0-linux-armv6.rpm
+1b50abb58fca75e4fb354359501c816d0f8d3bfa474c56d0bcec38162ebcdb3b  golangci-lint-1.31.0-freebsd-amd64.tar.gz
+317a401ebc91eae49205ab71ad3c81bc511b7722da31adcbca2e4dbad1661bc3  golangci-lint-1.31.0-linux-s390x.deb
+36ab03fb97771e2189a98b438b3d7cbbc6a46995841213783a14c89574b88753  golangci-lint-1.31.0-linux-amd64.rpm
+48ad2b2e47b051976667bee17a36af10f1753981a664d62b04a9cf90fb6d1adb  golangci-lint-1.31.0-linux-s390x.rpm
+5a18d18d9614ba8cda1d287e3544ebdc4605ecf13aa50ff648feeeeedfaf3f72  golangci-lint-1.31.0-linux-ppc64le.tar.gz
+6ce46e1c107e7a5a130f3c5630fea8b4a092932a9bce88f01291da47eaa1e5cb  golangci-lint-1.31.0-linux-386.deb
+6ce6b1d3207a63256d82fbbac80bb9e85d7705ec1a408f005dfe324457c54966  golangci-lint-1.31.0-windows-amd64.zip
+72578d27b5632f51f6b464fe528ec2fa08ab6190f0670328f2ec8ae745b7a68b  golangci-lint-1.31.0-linux-ppc64le.rpm
+7bd083d4b7db3dc331d2cc2a81922638ab4a5bba0a9b42f1d49b29e2d4e96546  golangci-lint-1.31.0-linux-amd64.deb
+86b571c1f0fb1dae477aecaa9db44c68a6293a876ace220846ad7419018696a6  golangci-lint-1.31.0-linux-arm64.deb
+8e363aac5d9c5fa72c84fbda0451d9e129a0830144cc59473cf70953179df103  golangci-lint-1.31.0-linux-armv7.rpm
+94bc443e01817ff14c76afcce8e67ba05221f24919f1b690224e34d80b92ce24  golangci-lint-1.31.0-linux-armv6.rpm
+9a5d47b51442d68b718af4c7350f4406cdc087e2236a5b9ae52f37aebede6cb3  golangci-lint-1.31.0-linux-amd64.tar.gz
+9fff85f4649d17d18ebbcb775fec05de42a83e08787af1850f8f5f8dd4c066e9  golangci-lint-1.31.0-linux-arm64.tar.gz
+a68a7d845034352a3ccb0886efdc488e6383144a9c245d041dde799580b671e3  golangci-lint-1.31.0-linux-386.tar.gz
+ae32d4676dd6dd3e08665df22e9b3ec1d85511412a94cf5f397c8fe2a0d4ed1a  golangci-lint-1.31.0-linux-arm64.rpm
+b43c4ab76c6edb4c3fde1d5764e1952e3bf017d264ef671047faa741a34b24c3  golangci-lint-1.31.0-freebsd-386.tar.gz
+bd3534eabc22b1a04745b0efa1c122865173fbc8c3b70e77272da209bfe02228  golangci-lint-1.31.0-linux-386.rpm
+c8d93e2c6f2acb9fe843387909ab2097f7d5fcda4ec04f050b90a30e593aac10  golangci-lint-1.31.0-freebsd-armv7.tar.gz
+d93cb2696bb263c273e76594d8eaa0f866e3b24954a0b8e3859c0b58abf4ec8f  golangci-lint-1.31.0-linux-ppc64le.deb
+d9ce8edd34994abead106f6a58337ca9396c8d0b1352bb19f7cd731ea9ea2021  golangci-lint-1.31.0-linux-armv6.tar.gz
+dbd12f2f64b801c2f737725bd05e0208d4383a42df00ff0ccc43a288937bbf1d  golangci-lint-1.31.0-linux-armv6.deb
+df5eaf84c96b3800a3f3642b7e418e8b96bb71d380bb7b5e6acf14de7baf93fe  golangci-lint-1.31.0-freebsd-armv6.tar.gz
+e60257d148bd655438622853b28b9ca65d20919d62115ce87ccb45d136592643  golangci-lint-1.31.0-linux-armv7.tar.gz
+ec9940b5a7dbc54fee75006ec67475243be645557bb3d3145beacd6289c8b654  golangci-lint-1.31.0-linux-s390x.tar.gz
+f3afeb6ad6964615e2b238f56cc2e5b32464f2f302a4f3ccf5874a04170c287a  golangci-lint-1.31.0-darwin-amd64.tar.gz
+fb5c25fa4471a74b5606be480bb083a06b15e834ef1293719b05d27e162e0bd6  golangci-lint-1.31.0-linux-armv7.deb
+ffee09c855a44e55e4d1242791eb5935f734fadf7b7b02c8d1eecbeeb7f868a1  golangci-lint-1.31.0-windows-386.zip
 `
