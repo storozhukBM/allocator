@@ -388,6 +388,16 @@ func (s *internalPointBufferView) growIfNecessary(
 		return slice, nil
 	}
 
+	return s.grow(slice, requiredLen)
+}
+
+func (s *internalPointBufferView) grow(
+	slice PointBuffer,
+	requiredLen int,
+) (PointBuffer, error) {
+	var tVar Point
+	tSize := unsafe.Sizeof(tVar)
+	requiredSizeInBytes := requiredLen * int(tSize)
 	emptyPtr := arena.Ptr{}
 	if s.state.lastAllocatedPtr != emptyPtr && slice.data == s.state.lastAllocatedPtr {
 		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)

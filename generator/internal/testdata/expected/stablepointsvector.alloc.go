@@ -388,6 +388,16 @@ func (s *internalStablePointsVectorBufferView) growIfNecessary(
 		return slice, nil
 	}
 
+	return s.grow(slice, requiredLen)
+}
+
+func (s *internalStablePointsVectorBufferView) grow(
+	slice StablePointsVectorBuffer,
+	requiredLen int,
+) (StablePointsVectorBuffer, error) {
+	var tVar StablePointsVector
+	tSize := unsafe.Sizeof(tVar)
+	requiredSizeInBytes := requiredLen * int(tSize)
 	emptyPtr := arena.Ptr{}
 	if s.state.lastAllocatedPtr != emptyPtr && slice.data == s.state.lastAllocatedPtr {
 		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)

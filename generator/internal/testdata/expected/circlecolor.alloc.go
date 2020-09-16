@@ -388,6 +388,16 @@ func (s *internalCircleColorBufferView) growIfNecessary(
 		return slice, nil
 	}
 
+	return s.grow(slice, requiredLen)
+}
+
+func (s *internalCircleColorBufferView) grow(
+	slice CircleColorBuffer,
+	requiredLen int,
+) (CircleColorBuffer, error) {
+	var tVar CircleColor
+	tSize := unsafe.Sizeof(tVar)
+	requiredSizeInBytes := requiredLen * int(tSize)
 	emptyPtr := arena.Ptr{}
 	if s.state.lastAllocatedPtr != emptyPtr && slice.data == s.state.lastAllocatedPtr {
 		nextPtr, probeAllocErr := s.state.alloc.Alloc(0, 1)
