@@ -232,6 +232,10 @@ func (s *BytesView) growIfNecessary(bytesSlice Bytes, requiredSize int) (Bytes, 
 		return target, nil
 	}
 
+	return s.grow(target, requiredSize)
+}
+
+func (s *BytesView) grow(target Bytes, requiredSize int) (Bytes, error) {
 	nextPtr, probeAllocErr := s.alloc.AllocUnaligned(0)
 	if probeAllocErr != nil {
 		return Bytes{}, probeAllocErr
