@@ -42,11 +42,11 @@ func (p Ptr) String() string {
 	return fmt.Sprintf("{mask: %v bucketIdx: %v offset: %v}", p.arenaMask, p.bucketIdx, p.offset)
 }
 
-//Offset is a arena.Ptr that can't be converted to unsafe.Pointer
-//or used as any kind of reference.
+// Offset is a arena.Ptr that can't be converted to unsafe.Pointer
+// or used as any kind of reference.
 //
-//This struct can be primarily used to build other allocators on top of low-level arenas
-//and can help to pre-calculate resulting padding or offset before performing the actual allocation.
+// This struct can be primarily used to build other allocators on top of low-level arenas
+// and can help to pre-calculate resulting padding or offset before performing the actual allocation.
 type Offset struct {
 	p Ptr
 }

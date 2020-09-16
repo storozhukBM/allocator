@@ -64,11 +64,11 @@ func (s StablePointsVectorBuffer) Cap() int {
 // SubSlice is an analog to []StablePointsVector[low:high]
 // Returns sub-slice of the StablePointsVectorBuffer and panics in case of bounds out of range.
 func (s StablePointsVectorBuffer) SubSlice(low int, high int) StablePointsVectorBuffer {
-	inBounds := low >= 0 && low <= high && high <= int(s.len)
+	inBounds := low >= 0 && low <= high && high <= s.cap
 	if !inBounds {
 		panic(fmt.Errorf(
-			"runtime error: slice bounds out of range [%d:%d] with length %d",
-			low, high, s.len,
+			"runtime error: slice bounds out of range [%d:%d] with capacity %d",
+			low, high, s.cap,
 		))
 	}
 	var tVar StablePointsVector
